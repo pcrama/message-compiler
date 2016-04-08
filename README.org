@@ -1,0 +1,47 @@
+* Problem statement
+
+The task is to compress about 100 messages of up to 128 ASCII
+characters in up to 15 languages for a small embedded device.  The
+messages use the code points 32-127 from the ASCII ranges, and some
+(about 64) of the other code points can be used to represent shared
+substrings.  This process is recursive, i.e. with =\x81= mapping to
+=\x82\x82= and =\x82= mapping to =aa=, the string =\x81= should expand
+to =aaaa=.
+
+When computing the space savings of a given replacement, the storage
+of the mapping from the character value to the substring should be
+taken in to account: this is the length of the substring and one extra
+byte.  Hence, replacing $n$ occurrences of a substring $l$ long yields
+a gain of $n l - n - (l + 1)$.
+̇
+* First attempt
+
+I used this problem as an opportunity to try out Haskell and made a
+first naive/greedy implementation.  Unfortunately, the code in
+=opt5.hs= takes 8min just to compute the list of all substrings
+contained in the messages for about 200 messages of at most 30
+characters each.
+
+The compression would require finding the most promising substitution,
+replacing it in the messages, then regenerating the substrings list.
+This is going to be unbearably slow.
+
+To run it, you need to uncomment the =main= function at the bottom of
+=opt5.hs=.
+
+* Space or Time Complexity
+
+This section is to keep notes about the expected orders of magnitude
+involved.
+
+** Assumptions
+- $M$ messages, with $M <= 100 * 15$
+- each message can be up to $L$ long, with $L < 128$
+- we are looking for at most $S$ substrings with $S \approx 64$.
+
+** Number of substrings
+An upper bound for the number of substrings in one message is
+$$ (L-1) + (L-2) + \ldots + 1 = \frac{L(L-1)}{2} $$
+The total number of substrings (assuming they are all distinct) is
+thus bounded by
+$$ M\frac{L(L-1)}{2} < 12192000 $$
