@@ -19,8 +19,8 @@ I used this problem as an opportunity to try out Haskell and made a
 first naive/greedy implementation.  Unfortunately, the code in
 =opt5.hs= takes more than 8min just to compute the list of all
 substrings contained in the 132 messages using less than 2000
-characters in total.  Compiling with @ghc --make -O2 -rtsopts opt5.hs@
-then running with @./opt5 +RTS -sstderr@ yields these statistics:
+characters in total.  Compiling with =ghc --make -O2 -rtsopts opt5.hs=
+then running with =./opt5 +RTS -sstderr= yields these statistics:
 #+BEGIN_EXAMPLE
   369,927,498,008 bytes allocated in the heap
     2,064,371,464 bytes copied during GC
