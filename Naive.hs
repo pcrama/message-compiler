@@ -8,12 +8,14 @@ module Naive
 
 import Data.List (foldl', sortBy, isPrefixOf)
 
+import qualified Data.ByteString as B
+
 -- stripPrefix isn't supported in hugs (used for development while on a
 -- trip) -> reimplement it, using the isPrefixOf function that's actually
 -- there.
-stripPrefix :: (Eq a) => [a] -> [a] -> Maybe [a]
-stripPrefix prefix x = if (prefix `isPrefixOf` x)
-    then Just $ drop (length prefix) x
+stripPrefix :: B.ByteString -> B.ByteString -> Maybe B.ByteString
+stripPrefix prefix x = if (prefix == B.take (B.length prefix) x)
+    then Just $ B.drop (B.length prefix) x
     else Nothing
 
 -- import Data.List.NonEmpty -- didn't work for me, so I copy-pasted instead
@@ -34,9 +36,7 @@ stripPrefix prefix x = if (prefix `isPrefixOf` x)
 
 data SubstringOccurences
    = SubstringOccurences {
-        soParent :: String
-      , soFrom :: Int
-      , soTo :: Int
+        substring :: B.ByteString
       , soOccursTemp :: [Int]
       , soCount :: Int
      }
@@ -44,41 +44,25 @@ data SubstringOccurences
 
 -- preferred constructor
 makeSubstringOccurences :: String -> Int -> Int -> SubstringOccurences
-makeSubstringOccurences parent from to = SubstringOccurences parent from to [from] 0
+makeSubstringOccurences parent from to = SubstringOccurences (drop from $ take to parent) [from] 0
 
-theSEED = SubstringOccurences "" 0 0 [] 0
-
-parentString :: SubstringOccurences -> String
-parentString = soParent
-
-substringFrom :: SubstringOccurences -> Int
-substringFrom = soFrom
-
-substringTo :: SubstringOccurences -> Int
-substringTo = soTo
+theSEED = SubstringOccurences B.empty [] 0
 
 substringOccurs :: SubstringOccurences -> [Int]
 substringOccurs = soOccursTemp
 
 substringLen :: SubstringOccurences -> Int
-substringLen x = (substringTo x) - (substringFrom x)
-
-substring :: SubstringOccurences -> String
-substring x = Prelude.take (to - from) (Prelude.drop from str)
-        where to = substringTo x
-              from = substringFrom x
-              str = parentString x
+substringLen = B.length . substring
 
 pushOccurence :: Int -> SubstringOccurences -> SubstringOccurences
-pushOccurence x (SubstringOccurences str from to occurs count) = SubstringOccurences str from to (x:occurs) count
+pushOccurence x (SubstringOccurences str occurs count) = SubstringOccurences str (x:occurs) count
 
 -- UNSAFE: what if list is empty?
 getFirstOccurence = head . substringOccurs
 
-consolidateSubstringOccurences x = if null occurs
-                                    then x
-                                    else SubstringOccurences parent from to [] (count + (length occurs))
-                                where (SubstringOccurences parent from to occurs count) = x
+consolidateSubstringOccurences x@(SubstringOccurences substring occurs count) = if null occurs
+    then x
+    else SubstringOccurences substring [] (count + (length occurs))
 
 isNotOverlapping :: Int -> SubstringOccurences -> Bool
 isNotOverlapping _ so | null (substringOccurs so) = True
@@ -97,22 +81,17 @@ maybesToList [] = []
 maybesToList ((Just x):xs) = x:maybesToList xs
 maybesToList (Nothing:xs) = maybesToList xs
 
-string_equal :: String -> String -> Int -> Int -> Bool
-string_equal s1 s2 s1_start s2_len = string_equal_1 (drop s1_start s1) s2 s2_len
+string_equal :: B.ByteString -> B.ByteString -> Int -> Int -> Bool
+string_equal s1 s2 s1_start s2_len = 
+    ((s1_start + s2_len) <= (length s1)) &&
+    (take s2_len $ drop s1_start s1) == s2
 
-string_equal_1 :: String -> String -> Int -> Bool
-string_equal_1 [] _ leng = leng < 1
-string_equal_1 _ [] leng = if leng < 1
-                              then True
-                              else error "Ohoh"
-string_equal_1 (x:xs) (y:ys) leng = (leng < 1) || ((x == y) && (string_equal_1 xs ys (leng - 1)))
-
-isNewOccurence :: String -> Int -> SubstringOccurences -> Bool
+isNewOccurence :: B.ByteString -> Int -> SubstringOccurences -> Bool
 isNewOccurence parent from so = isNotOverlapping from so &&
                                 (string_equal parent (substring so) from len)
                     where len = (substringLen so)
 
-updateOccurences :: String -> Int -> SubstringOccurences -> (Maybe SubstringOccurences, Maybe SubstringOccurences)
+updateOccurences :: B.ByteString -> Int -> SubstringOccurences -> (Maybe SubstringOccurences, Maybe SubstringOccurences)
 updateOccurences parent from so = (updated_so, new_so)
                             where updated_so = if isNewOccurence parent from so
                                                   then Just (pushOccurence from so)
@@ -150,11 +129,11 @@ replaceSubstringOccurencesInList x (y:ys) = if (eqSubstringOccurencesInList x y)
 countDown :: Int -> [Int]
 countDown start = map (start -) [0..start]
 
-getSubstrings_1 :: String -> [SubstringOccurences] -> [SubstringOccurences]
+getSubstrings_1 :: B.ByteString -> [SubstringOccurences] -> [SubstringOccurences]
 -- get all substrings and their occurences in one string
 getSubstrings_1 str x = map consolidateSubstringOccurences $ foldl' (\ acc x -> updateOccurencesList str x acc) x (countDown ((length str) - 1))
 
-getSubstrings :: [String] -> [SubstringOccurences]
+getSubstrings :: [B.ByteString] -> [SubstringOccurences]
 -- get all substrings and their occurences in the list of strings
 getSubstrings = foldl' (\acc x -> getSubstrings_1 x acc) [theSEED]
 
