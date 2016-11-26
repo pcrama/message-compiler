@@ -17,14 +17,19 @@ import Reader
 
 newtype EnnGram = EnnGram Word32
 
+instance Show EnnGram where
+  show x = "EG " ++ (show $ ennOffs x) ++ ":" ++ (show $ ennLength x)
+
 --mkEnnGram :: (Integral len, Bits len) => Offset -> len -> Maybe EnnGram
+mkEnnGram :: Offset -> Length -> Maybe EnnGram
 mkEnnGram offs len =
   if (offs < maxOffs) && (len > 2) && (len < maxLen)
-  then Just . EnnGram $ (fromIntegral offs `shift` 12)
+  then Just . EnnGram $ (fromIntegral offs `shift` lenWidth)
                         + fromIntegral len
   else Nothing
   where maxOffs = 1 `shift` 20
-        maxLen = 1 `shift` 12
+        maxLen = 1 `shift` lenWidth
+        lenWidth = 12 -- bits
 
 ennString :: EnnGram -> Reader InputText String
 ennString x = do

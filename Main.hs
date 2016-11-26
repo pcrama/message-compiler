@@ -38,9 +38,10 @@ instance Ord FullEnnGram where
                    otherwise -> comp
 
 -- CombineState2 contains the offset where a new substring
--- can be counted (index of first char after substring)
--- and the count so far
+-- with the same content can be counted (index of first
+-- char after substring) and the count so far
 newtype CombineState2 = CS2 (Offset, Int)
+  deriving Show
 
 -- Prevent overlapping instances of substrings: "ababa"
 -- shouldn't be counted as containing the substring "aba"
@@ -101,8 +102,21 @@ ennGramMap txt = (mp, dt)
         mapfun :: InputText -> (EnnGram, CombineState2)
                   -> (FullEnnGram, CombineState2)
         mapfun txt (ng, cs2) = (FullEnnGram ng txt, cs2)
-        mp = fromListWithKey combine2 $ map (mapfun txt) el
-        (_, _, el) = foldEnumArray (combine1 txt dt)
+        mp = fromListWithKey combine2
+           $ map (mapfun txt)
+           $ makeEnnGramList txt dt
+
+-- Make a list of EnnGram that could possibly appear
+-- several times in the InputText.  Each EnnGram is
+-- paired with CombineState2 to detect overlaps and
+-- prepare for counting them.
+--
+-- TODO: refactor output type to [EnnGram] because the
+-- overlap information is implicit in each EnnGram.
+makeEnnGramList :: InputText -> DigramTable
+                -> [(EnnGram, CombineState2)]
+makeEnnGramList txt dt = el
+  where (_, _, el) = foldEnumArray (combine1 txt dt)
                                    (0::Offset, initDigram, [])
                                    txt
 
