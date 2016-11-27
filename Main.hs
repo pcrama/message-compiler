@@ -37,6 +37,10 @@ instance Ord FullEnnGram where
                    EQ -> res
                    otherwise -> comp
 
+compressionGain :: Length -> Int -> Int
+compressionGain len count =
+  (count - 1) * (fromIntegral len - 1) - 2
+
 -- CombineState2 contains the offset where a new substring
 -- with the same content can be counted (index of first
 -- char after substring) and the count so far
@@ -86,9 +90,9 @@ showEnnGramMap = map showKeyVal
                . filter compresses
                . toList
   where showKeyVal (f, CS2 (_, count)) = show (f, count)
-        compareGain x y = (compare `on` compressionGain) y x
-        compressionGain (FullEnnGram ng _, CS2 (_, count)) =
-          (count - 1) * (fromIntegral (ennLength ng) - 1) - 2
+        compareGain x y = (compare `on` compressionGain') y x
+        compressionGain' (FullEnnGram ng _, CS2 (_, count)) =
+          compressionGain (ennLength ng) count
         compresses (FullEnnGram ng _, CS2 (_, count)) =
           (ennLength ng == 3) && (count > 2)
           || (ennLength ng > 3) && (count > 1)
@@ -137,10 +141,21 @@ type CombineState1 = (Offset, Digram, [(EnnGram, CombineState2)])
 -- consideration.  There are 3 cases:
 -- [1] Warmup: the substrings under consideration need to
 --     be 3 chars or longer so if the range [prOffs, offs]
---     is shorter than that, we just update the Digram
+--     is shorter than that, we update the Digram
+--     [a] Digram is incomplete (i.e. only one Char read,
+--         offs == prOffs): accept updated Digram and
+--         continue immediately: we don't have enough
+--         information yet to do more.
+--     [b] Digram is complete (i.e. offs - prOffs == 1)
 --     inpTxt = "...0123456789..."
---       cp = 0x36 = '6' ^^
+--       cp = 0x36 = '6' ^^       newDigram="56"
 --                prOffs /\ offs
+--         If that Digram occurs > 1, future EnnGram starting
+--         with it might also occur several times, so
+--         accept new Digram and continue immediately.
+--         If that Digram only occurs once, all following
+--         EnnGram will also only occur once, so restart
+--         from current char (i.e. at offs)
 -- [2] Restart: if any digram in the substrings was seen
 --     less than twice, then all these substrings can also
 --     only occur at most once, which means they aren't
@@ -160,9 +175,10 @@ combine1 :: InputText -> DigramTable ->
             (Offset, Codepoint) -> CombineState1 ->
             CombineState1
 combine1 inpTxt digTab (offs, cp) prev@(prOffs, prDigram, prTail)
-    | stringBoundary newDigram = stopAndRestart
-    | (offs - prOffs) < 2 = warmup prOffs newDigram prTail
-    | (maxOccur > 1) = enqueueNewEnnGrams prOffs newDigram offs prTail
+    | (((offs - prOffs) == 1 && (maxOccur > 1))
+       || (offs == prOffs)) =
+       warmup prOffs newDigram prTail
+    | (maxOccur > 1) = enqueueNewEnnGrams maxOccur prOffs newDigram offs prTail
     | otherwise = stopAndRestart
   where newDigram = shiftDigram cp prDigram
         maxOccur = digTab ! newDigram 
@@ -174,11 +190,11 @@ combine1 inpTxt digTab (offs, cp) prev@(prOffs, prDigram, prTail)
                    CombineState1
         restart o d t = (o, shiftDigram d initDigram, t)
 
-enqueueNewEnnGrams :: Offset -> Digram -> Offset -> [(EnnGram, CombineState2)] ->
+enqueueNewEnnGrams :: Int -> Offset -> Digram -> Offset -> [(EnnGram, CombineState2)] ->
                       CombineState1
-enqueueNewEnnGrams prOffs d offs t = (prOffs, d, newTail)
+enqueueNewEnnGrams maxOccur prOffs d offs t = (prOffs, d, newTail)
   where newTail = foldr fun t ennGram_lengths
-        ennGram_lengths = take (offs - prOffs - 1) [(3::Offset)..]
+        ennGram_lengths = drop (if maxOccur > 2 then 0 else 1) $ take (offs - prOffs - 1) [(3::Length)..]
         fun len base = let Just ng = mkEnnGram (offs - len + 1) len in
           (ng, CS2 (offs + 1, 1)):base
 

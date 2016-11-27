@@ -42,5 +42,5 @@ ennString x = do
 ennOffs :: EnnGram -> Offset
 ennOffs (EnnGram x) = fromIntegral $ x `shift` (0 - 12)
 
-ennLength :: EnnGram -> Word32
-ennLength (EnnGram x) = x .&. 0xfff
+ennLength :: EnnGram -> Length
+ennLength (EnnGram x) = fromIntegral $ x .&. 0xfff

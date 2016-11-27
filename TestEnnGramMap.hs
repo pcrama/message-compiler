@@ -60,7 +60,36 @@ testMakeEnnGramList = do
   -- only twice, but EnnGram of length > 3 occuring at most
   -- twice is OK
   oneTestMakeEnnGramList ["abcd", "abcd"] [(0,4),(5,4)]
-  oneTestMakeEnnGramList ["abcd", "abcde", "bacde"] [(0,4),(5,4)]
+  oneTestMakeEnnGramList ["abcd", "abcde", "bacd"]
+                         [(0,4),(5,4)
+                         -- ideally, these (bcd) wouldn't be
+                         -- generated but only one Digram
+                         -- at a time is considered, so
+                         -- when "cd" (3 occurences) is seen,
+                         -- "bcd" is generated even though
+                         -- "bc" only occurs twice and an
+                         -- EnnGram of length 3 only gains
+                         -- when it occure more often.
+                         ,(1,3),(6,3)
+                         ]
+  -- some time during development, the output included an
+  -- EnnGram "ba\0" (or "\0ba"?), i.e. with a word separator
+  oneTestMakeEnnGramList ["ababa", "aba", "tab", "aba"] 
+                         [(0,3),(0,4),(0,5)
+                         ,(1,3),(1,4)
+                         ,(2,3)
+                         ,(6,3)
+                         ,(14,3)]
+  -- This test case added to check that skipping upon seeing
+  -- `ta' (Digram occuring only once) doesn't miss the `aba'
+  -- that follows.  I.e. skipping because of a Digram doesn't
+  -- forget about the second char of the Digram
+  oneTestMakeEnnGramList ["ababa", "aba", "taba"] 
+                         [(0,3),(0,4),(0,5)
+                         ,(1,3),(1,4)
+                         ,(2,3)
+                         ,(6,3)
+                         ,(11,3)]
   oneTestMakeEnnGramList 
     ["aaaaaa","aaa"]
     [(0,3),(0,4),(0,5),(0,6)
@@ -68,3 +97,21 @@ testMakeEnnGramList = do
     ,(2,3),(2,4)
     ,(3,3)
     ,(7,3)]
+  oneTestMakeEnnGramList 
+    ["aaaaaaa","aaa"]
+    [(0,3),(0,4),(0,5),(0,6),(0,7)
+    ,(1,3),(1,4),(1,5),(1,6)
+    ,(2,3),(2,4),(2,5)
+    ,(3,3),(3,4)
+    ,(4,3)
+    ,(8,3)]
+
+
+eeer = do
+  oneTestMakeEnnGramList ["ababa", "aba", "taba"] 
+                         [(0,3),(0,4),(0,5)
+                         ,(1,3),(1,4)
+                         ,(2,3)
+                         ,(6,3)
+                         -- why `tab'? --,(10,3)
+                         ,(11,3)]
