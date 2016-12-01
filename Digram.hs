@@ -48,6 +48,16 @@ shiftDigram c (Digram x) = Digram $
 stringBoundary :: Digram -> Bool
 stringBoundary (Digram x) = (x < 256) || ((x .&. 255) == 0)
 
+-- Return array from Digram to occurence count.  This info
+-- will be used to abort generation of EnnGram candidates to
+-- count on the basis that if an EnnGram contains a Digram
+-- that only occurs once, that EnnGram will also only occur
+-- once and hence it makes no sense to count it in the hope
+-- of compressing it.  This mechanism is also used to
+-- prevent compression of parts across string boundaries
+-- (the input is a list of strings represented as InputText)
+-- by forcing all Digram containing the string separator
+-- (\NUL) to an occur count of 0.
 digramTable :: InputText -> DigramTable
 digramTable txt =
     accumArray (+) 0 (minBound, maxBound) . map (flip (,) 1) $

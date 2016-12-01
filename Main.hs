@@ -5,7 +5,7 @@ where
 import Data.Ix (Ix, range)
 import Data.Array ((!), Array, accumArray, array, bounds)
 import Data.Char (ord, chr)
-import Data.List (sortBy)
+import Data.List (sortBy, unfoldr, foldl')
 import Data.Map (Map, fromListWithKey, size, toList)
 
 import Digram
@@ -193,8 +193,9 @@ combine1 inpTxt digTab (offs, cp) prev@(prOffs, prDigram, prTail)
 enqueueNewEnnGrams :: Int -> Offset -> Digram -> Offset -> [(EnnGram, CombineState2)] ->
                       CombineState1
 enqueueNewEnnGrams maxOccur prOffs d offs t = (prOffs, d, newTail)
-  where newTail = foldr fun t ennGram_lengths
-        ennGram_lengths = drop (if maxOccur > 2 then 0 else 1) $ take (offs - prOffs - 1) [(3::Length)..]
+  where newTail = foldr fun t ennGramLengths
+        ennGramLengths = filter (\len -> compressionGain len maxOccur > 0)
+                         $ take (offs - prOffs - 1) [(3::Length)..]
         fun len base = let Just ng = mkEnnGram (offs - len + 1) len in
           (ng, CS2 (offs + 1, 1)):base
 
