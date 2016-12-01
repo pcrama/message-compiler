@@ -12,6 +12,7 @@ where
 
 import Data.Array ((!), Array, accumArray, array, bounds)
 import Data.Bits ((.&.), (.|.), shift)
+import Data.List (foldl')
 import Data.Ix (Ix, range)
 import Data.Char (chr, ord)
 import Data.Word (Word16)
@@ -73,14 +74,10 @@ digramTable txt =
 
 foldArray :: Ix a => (b -> c -> c) -> c -> Array a b -> c
 foldArray fun base arr =
-    myFoldl' combine base (range $ bounds arr)
+    foldl' combine base (range $ bounds arr)
   where combine xs idx = fun (arr ! idx) xs
 
 foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
 foldEnumArray fun base arr =
-    myFoldl' combine base (range $ bounds arr)
+    foldl' combine base (range $ bounds arr)
   where combine xs idx = fun (idx, (arr ! idx)) xs
-
-myFoldl' :: (a -> b -> a) -> a -> [b] -> a
-myFoldl' _ a [] = a
-myFoldl' f a (x:xs) = let fax = f a x in fax `seq` myFoldl' f fax xs

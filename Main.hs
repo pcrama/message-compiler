@@ -199,19 +199,10 @@ enqueueNewEnnGrams maxOccur prOffs d offs t = (prOffs, d, newTail)
         fun len base = let Just ng = mkEnnGram (offs - len + 1) len in
           (ng, CS2 (offs + 1, 1)):base
 
-foldArray :: Ix a => (b -> c -> c) -> c -> Array a b -> c
-foldArray fun base arr =
-    myFoldl' combine base (range $ bounds arr)
-  where combine xs idx = fun (arr ! idx) xs
-
 foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
 foldEnumArray fun base arr =
-    myFoldl' combine base (range $ bounds arr)
+    foldl' combine base (range $ bounds arr)
   where combine xs idx = fun (idx, (arr ! idx)) xs
-
-myFoldl' :: (a -> b -> a) -> a -> [b] -> a
-myFoldl' _ a [] = a
-myFoldl' f a (x:xs) = let fax = f a x in fax `seq` myFoldl' f fax xs
 
 readLicense :: IO InputText
 readLicense = do
