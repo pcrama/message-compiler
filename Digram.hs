@@ -2,6 +2,7 @@ module Digram (
   Digram(..)
 , DigramTable
 , digramTable
+, unDigram
 , summarizeDigramTable
 , initDigram
 , shiftDigram

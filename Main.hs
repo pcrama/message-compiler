@@ -13,29 +13,60 @@ import EnnGram
 import InputText
 import Reader
 
-data FullEnnGram = FullEnnGram EnnGram InputText
+-- Assuming that `compressionGain' is well-behaved, these
+-- constants allow to avoid calling compressionGain during
+-- predicates where the length of the Digram or EnnGram is
+-- already known.
+minCountLen2 = head $ dropWhile ((<=0) . (compressionGain 2)) [2..]
+minCountLen3 = head $ dropWhile ((<=0) . (compressionGain 3)) [2..]
+minCountLen4 = head $ dropWhile ((<=0) . (compressionGain 4)) [2..]
 
-instance Show FullEnnGram where
-  show (FullEnnGram ng it) = runReader (ennString ng) it
-
-instance Eq FullEnnGram where
-  f == g = (compare f g) == EQ
-
-instance Ord FullEnnGram where
-  compare (FullEnnGram s e) (FullEnnGram t f)
-    | sLen > tLen = GT
-    | sLen < tLen = LT
-    | sLen == tLen =
-        foldr cpComp EQ $ take (fromIntegral sLen) $ zip [(ennOffs s)..] [(ennOffs t)..]
-    where sLen = ennLength s
-          tLen = ennLength t
-          cpComp (sIdx, tIdx) res =
-              let sCp = e ! sIdx
-                  tCp = f ! tIdx
-                  comp = compare sCp tCp
-              in case comp of
-                   EQ -> res
-                   otherwise -> comp
+bestCandidate :: EnnGramMap -> DigramTable -> Maybe (String, Int)
+bestCandidate mp dt = result
+  where bestE :: [(FullEnnGram, CombineState2)]
+        bestE = take 1
+              . sortBy compareEnnGain
+              . filter ennCompresses
+              $ toList mp
+        filterDigram :: Int -> Bool
+        filterDigram =
+          case bestE of
+            [(FullEnnGram e _, CS2 (_, ec))] ->
+                let eg = compressionGain (ennLength e) ec
+                in \c -> compressionGain 2 c > eg
+            [] ->
+                \c -> c >= minCountLen2
+        bestD = take 1
+              $ foldEnumArray
+                  (\nw@(_, newC) xs ->
+                    let acceptable = filterDigram newC
+                        improves = case xs of
+                                     [] -> True
+                                     ((oldDi, oldC):_) -> 
+                                         newC > oldC
+                    in if acceptable && improves
+                       then nw:xs
+                       else xs)
+                  []
+                  dt
+        result = case bestD of
+                   [(digram, c)] ->
+                       Just (unDigram digram, c)
+                   [] ->
+                       case bestE of
+                         [(fe, CS2 (_, ec))] ->
+                             Just (fullEnnGramToString fe
+                                  ,ec)
+                         [] -> Nothing
+        compareEnnGain x y = (compare `on` compressionGain') y x
+        compressionGain' (FullEnnGram ng _, CS2 (_, count)) =
+          compressionGain (ennLength ng) count
+        ennCompresses (FullEnnGram ng _, CS2 (_, count)) =
+          (ennLength ng == 3) && (count >= minCountLen3)
+          || (ennLength ng > 3) && (count > minCountLen4)
+        -- found `on' with Hoogle but not in Hugs?
+        on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
+        on f g x y = f (g x) (g y)
 
 compressionGain :: Length -> Int -> Int
 compressionGain len count =
@@ -83,7 +114,9 @@ stringList = ["ababa", "aba", "tab", "aba"]
 
 (mmpp, ddtt) = ennGramMap txt
 
-showEnnGramMap :: Map FullEnnGram CombineState2 -> [String]
+type EnnGramMap = Map FullEnnGram CombineState2
+
+showEnnGramMap :: EnnGramMap -> [String]
 showEnnGramMap = map showKeyVal
                . take 64
                . sortBy compareGain
@@ -100,7 +133,7 @@ showEnnGramMap = map showKeyVal
         on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
         on f g x y = f (g x) (g y)
 
-ennGramMap :: InputText -> (Map FullEnnGram CombineState2, DigramTable)
+ennGramMap :: InputText -> (EnnGramMap, DigramTable)
 ennGramMap txt = (mp, dt)
   where dt = digramTable txt
         mapfun :: InputText -> (EnnGram, CombineState2)
@@ -115,8 +148,12 @@ ennGramMap txt = (mp, dt)
 -- paired with CombineState2 to detect overlaps and
 -- prepare for counting them.
 --
--- TODO: refactor output type to [EnnGram] because the
--- overlap information is implicit in each EnnGram.
+-- Can't refactor output type to only [EnnGram] even though
+-- the overlap information is implicit in each EnnGram:
+-- when inserting a new EnnGram in the Map, function
+-- combining the old value in the map with the new one
+-- only gets the new key but can't recover the old key
+-- (same string, but at a different offset) easily.
 makeEnnGramList :: InputText -> DigramTable
                 -> [(EnnGram, CombineState2)]
 makeEnnGramList txt dt = el
@@ -213,3 +250,7 @@ readLicense = do
 testWithLicense :: IO ()
 testWithLicense = readLicense >>= (
   putStrLn . concat . showEnnGramMap . fst . ennGramMap)
+
+firstComprCand :: IO ()
+firstComprCand = readLicense >>= (
+  putStrLn . show . uncurry bestCandidate . ennGramMap)
