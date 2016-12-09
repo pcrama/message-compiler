@@ -4,6 +4,7 @@ import Data.List (sortBy)
 import qualified Data.Map as M
 import Debug.Trace (trace)
 
+import Utils
 import Digram
 import EnnGram
 import InputText

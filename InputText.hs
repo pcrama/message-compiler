@@ -1,8 +1,6 @@
 module InputText (
   Codepoint
 , InputText
-, Offset
-, Length
 , toCodepoints
 , charToCodepoint
 )
@@ -15,9 +13,9 @@ import Data.Char (ord)
 import Data.Word (Word8)
 import Debug.Trace (trace)
 
+import Utils
+
 type Codepoint = Word8
-type Offset = Int
-type Length = Int
 
 type InputText = A.Array Offset Codepoint
 

@@ -8,18 +8,11 @@ import Data.Char (ord, chr)
 import Data.List (sortBy, unfoldr, foldl')
 import Data.Map (Map, fromListWithKey, size, toList)
 
+import Utils
 import Digram
 import EnnGram
 import InputText
 import Reader
-
--- Assuming that `compressionGain' is well-behaved, these
--- constants allow to avoid calling compressionGain during
--- predicates where the length of the Digram or EnnGram is
--- already known.
-minCountLen2 = head $ dropWhile ((<=0) . (compressionGain 2)) [2..]
-minCountLen3 = head $ dropWhile ((<=0) . (compressionGain 3)) [2..]
-minCountLen4 = head $ dropWhile ((<=0) . (compressionGain 4)) [2..]
 
 bestCandidate :: EnnGramMap -> DigramTable -> Maybe (String, Int)
 bestCandidate mp dt = result
@@ -67,10 +60,6 @@ bestCandidate mp dt = result
         -- found `on' with Hoogle but not in Hugs?
         on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
         on f g x y = f (g x) (g y)
-
-compressionGain :: Length -> Int -> Int
-compressionGain len count =
-  (count - 1) * (fromIntegral len - 1) - 2
 
 -- CombineState2 contains the offset where a new substring
 -- with the same content can be counted (index of first
@@ -235,11 +224,6 @@ enqueueNewEnnGrams maxOccur prOffs d offs t = (prOffs, d, newTail)
                          $ take (offs - prOffs - 1) [(3::Length)..]
         fun len base = let Just ng = mkEnnGram (offs - len + 1) len in
           (ng, CS2 (offs + 1, 1)):base
-
-foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
-foldEnumArray fun base arr =
-    foldl' combine base (range $ bounds arr)
-  where combine xs idx = fun (idx, (arr ! idx)) xs
 
 readLicense :: IO InputText
 readLicense = do

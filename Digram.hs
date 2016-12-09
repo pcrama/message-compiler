@@ -18,7 +18,8 @@ import Data.Ix (Ix, range)
 import Data.Char (chr, ord)
 import Data.Word (Word16)
 
-import InputText (Codepoint, InputText, Offset)
+import InputText (Codepoint, InputText)
+import Utils (Offset)
 
 newtype Digram = Digram Word16
   deriving (Bounded, Eq, Ix, Ord)

@@ -15,6 +15,7 @@ import Data.Bits ((.&.), shift, Bits)
 import Data.Map (fromListWith)
 import Data.Char (chr)
 
+import Utils
 import InputText
 import Reader
 
