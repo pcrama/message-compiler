@@ -19,17 +19,17 @@ import Data.Char (chr, ord)
 import Data.Word (Word16)
 
 import InputText (Codepoint, InputText)
-import Utils (Offset)
+import Utils (Count)
 
 newtype Digram = Digram Word16
   deriving (Bounded, Eq, Ix, Ord)
 
-type DigramTable = Array Digram Offset
+type DigramTable = Array Digram Count
 
 initDigram :: Digram
 initDigram = Digram 0
 
-summarizeDigramTable :: DigramTable -> [(String, Offset)]
+summarizeDigramTable :: DigramTable -> [(String, Count)]
 summarizeDigramTable =
   foldEnumArray (\(di,count) t ->
                    if count > 0

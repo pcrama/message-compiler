@@ -8,6 +8,7 @@ import Data.Array ((!), Array, accumArray, array, bounds)
 
 type Offset = Int
 type Length = Int
+type Count = Int
 
 -- Assuming that `compressionGain' is well-behaved, these
 -- constants allow to avoid calling compressionGain during
@@ -25,3 +26,7 @@ foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
 foldEnumArray fun base arr =
     foldl' combine base (range $ bounds arr)
   where combine xs idx = fun (idx, (arr ! idx)) xs
+
+-- found `on' with Hoogle but not in Hugs?
+on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
+on f g x y = f (g x) (g y)
