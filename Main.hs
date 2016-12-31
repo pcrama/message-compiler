@@ -33,6 +33,6 @@ testWithLicense :: IO ()
 testWithLicense = readLicense >>= (
   putStrLn . concat . showEnnGramMap . fst . ennGramMap)
 
-firstComprCand :: IO ()
-firstComprCand = readLicense >>= (
-  putStrLn . show . uncurry bestCandidate . ennGramMap)
+firstComprBatch :: IO ()
+firstComprBatch = readLicense >>= (
+  putStrLn . show . getNextCandidates . uncurry makeCandidates . ennGramMap)

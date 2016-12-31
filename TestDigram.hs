@@ -10,11 +10,6 @@ import Data.Traversable (traverse)
 import InputText
 import Digram
 
-instance Monad (Either a) where
-  return = Right
-  (Left x) >>= _k = Left x
-  (Right x) >>= k = k x
-
 testDigramTable :: Either (Maybe [(String, Int)]) Bool
 testDigramTable = do
   testDigram [""] []

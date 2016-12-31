@@ -30,3 +30,16 @@ foldEnumArray fun base arr =
 -- found `on' with Hoogle but not in Hugs?
 on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 on f g x y = f (g x) (g y)
+
+-- how many `special chars' are available to represent substrings
+maxCompressions = 64 :: Int
+
+longerThan [] x = x < 0
+longerThan (x:xs) len = longerThan xs (len - 1)
+
+-- No Monad instance for Either in Hugs? I'll just fake one
+-- here...
+instance Monad (Either a) where
+  return = Right
+  (Left x) >>= _ = Left x
+  (Right y) >>= k = k y

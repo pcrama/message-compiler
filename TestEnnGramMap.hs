@@ -41,13 +41,6 @@ makeExpectedEnnGramList =
              maybe [] (:acc) $ mkEnnGram (offs :: Offset) len)
         []
 
--- No Monad instance for Either in Hugs? I'll just fake one
--- here...
-instance Monad (Either a) where
-  return = Right
-  (Left x) >>= _ = Left x
-  (Right y) >>= k = k y
-
 testMakeEnnGramList :: Either ([String], [(EnnGram, CombineState2)]) Bool
 testMakeEnnGramList = do
   oneTestMakeEnnGramList [] []
