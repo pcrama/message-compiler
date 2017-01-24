@@ -12,7 +12,6 @@ import Utils
 import Digram
 import EnnGram
 import InputText
-import Reader
 import CandidateSelection
 
 -- Test case: stringList = ["ababa", "aba", "tab", "aba"]
@@ -36,3 +35,5 @@ testWithLicense = readLicense >>= (
 firstComprBatch :: IO ()
 firstComprBatch = readLicense >>= (
   putStrLn . show . getNextCandidates . uncurry makeCandidates . ennGramMap)
+
+main = firstComprBatch

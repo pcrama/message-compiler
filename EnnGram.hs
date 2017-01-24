@@ -13,7 +13,7 @@ module EnnGram (
 , showEnnGramMap
 ) where
 
-import qualified Array as A
+import qualified Data.Array as A
 import Data.List (sortBy)
 import Data.Word (Word32)
 import Data.Array ((!))

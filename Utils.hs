@@ -36,10 +36,3 @@ maxCompressions = 64 :: Int
 
 longerThan [] x = x < 0
 longerThan (x:xs) len = longerThan xs (len - 1)
-
--- No Monad instance for Either in Hugs? I'll just fake one
--- here...
-instance Monad (Either a) where
-  return = Right
-  (Left x) >>= _ = Left x
-  (Right y) >>= k = k y

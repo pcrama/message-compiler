@@ -7,7 +7,7 @@ module InputText (
 
 where
 
-import qualified Array as A
+import qualified Data.Array as A
 import Data.Traversable (traverse)
 import Data.Char (ord)
 import Data.Word (Word8)
