@@ -1,2 +1,4 @@
 README.html
 strings.txt
+*.o
+*.hi
