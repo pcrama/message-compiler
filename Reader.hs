@@ -1,7 +1,5 @@
 module Reader (
-  Applicative
-, pure
-, ask
+  ask
 , asks
 , Reader
 , runReader
@@ -14,13 +12,8 @@ newtype Reader a b = Reader { runReader :: a -> b }
 instance Functor (Reader a) where
   fmap f (Reader g) = Reader $ f . g
 
-instance Applicative (Reader a) where
-  pure = Reader . const
-  -- Reader a b->c -> Reader a b -> Reader a c
-  (Reader af) <*> (Reader av) = Reader $ \a -> (af a) (av a)
-
 instance Monad (Reader a) where
-  return = pure
+  return = Reader . const
   (Reader a) >>= k = Reader $ \x ->
     let (Reader f) = k . a $ x in f x
 
