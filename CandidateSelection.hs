@@ -44,8 +44,8 @@ instance Ord Candidate where
 makeCandidates :: EnnGramMap -> DigramTable
                -> [Candidate]
 makeCandidates mp dt = mergeBy (flip compare) ennGrams diGrams
-  where diGrams = take maxCompressions
-                $ map digramToCand
+  where diGrams = map digramToCand
+                $ take maxCompressions
                 $ sortBy (flip $ comparing digramCount)
                 $ filter ((>= minCountLen2) . digramCount)
                 $ assocs dt
