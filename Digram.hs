@@ -17,9 +17,10 @@ import Data.List (foldl')
 import Data.Ix (Ix, range)
 import Data.Char (chr, ord)
 import Data.Word (Word16)
+import qualified Data.ByteString as B
 
 import InputText (Codepoint, InputText)
-import Utils (Count)
+import Utils (Count, stringSeparationCP)
 
 newtype Digram = Digram Word16
   deriving (Bounded, Eq, Ix, Ord)
@@ -29,7 +30,7 @@ type DigramTable = Array Digram Count
 initDigram :: Digram
 initDigram = Digram 0
 
-summarizeDigramTable :: DigramTable -> [(String, Count)]
+summarizeDigramTable :: DigramTable -> [(B.ByteString, Count)]
 summarizeDigramTable =
   foldEnumArray (\(di,count) t ->
                    if count > 0
@@ -38,18 +39,20 @@ summarizeDigramTable =
                 []
 
 instance Show Digram where
-  show x = "Digram " ++ unDigram x
+  show x = "Digram " ++ (map (chr .fromIntegral) . B.unpack $ unDigram x)
 
+unDigram :: Digram -> B.ByteString
 unDigram (Digram x) = 
-    (wchr (x `shift` (-8))):(wchr $ x .&. 0xff):[]
-  where wchr = chr . fromIntegral
+    B.pack $ (wchr (x `shift` (-8))):(wchr $ x .&. 0xff):[]
+  where wchr = fromIntegral
 
 shiftDigram :: Codepoint -> Digram -> Digram
 shiftDigram c (Digram x) = Digram $
   ((x .&. 0xff) `shift` 8) .|. ((fromInteger . toInteger) c .&. 0xff)
 
 stringBoundary :: Digram -> Bool
-stringBoundary (Digram x) = (x < 256) || ((x .&. 255) == 0)
+stringBoundary (Digram x) = ((x `shift` (-8)) == fromInteger stringSeparationCP)
+                         || ((x .&. 255) == fromIntegral stringSeparationCP)
 
 -- Return array from Digram to occurence count.  This info
 -- will be used to abort generation of EnnGram candidates to
@@ -66,18 +69,13 @@ digramTable txt =
     accumArray (+) 0 (minBound, maxBound) . map (flip (,) 1) $
       digramList
   where digramList = filter (not . stringBoundary) . snd $
-                            foldArray tally (False, [Digram 0]) txt
-        tally :: Codepoint -> (Bool, [Digram]) -> (Bool, [Digram])
-        tally c (riskOverlap, z@(x:_)) =
+                            B.foldl' tally (False, [Digram 0]) txt
+        tally :: (Bool, [Digram]) -> Codepoint -> (Bool, [Digram])
+        tally (riskOverlap, z@(x:_)) c =
           let newDigram = shiftDigram c x in
            if riskOverlap && (newDigram == x)
            then (False, z)
            else (True, newDigram:z)
-
-foldArray :: Ix a => (b -> c -> c) -> c -> Array a b -> c
-foldArray fun base arr =
-    foldl' combine base (range $ bounds arr)
-  where combine xs idx = fun (arr ! idx) xs
 
 foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
 foldEnumArray fun base arr =

@@ -5,24 +5,23 @@ where
 import Data.Ord (comparing)
 import Data.List (sort
                 , sortBy
-                , tails
-                , break
-                , isPrefixOf
-                , isSuffixOf
-                , isInfixOf)
+                , break)
 import Data.Map (toList)
 import Data.Array (assocs)
+import qualified Data.ByteString as B
 
 import Utils
 import InputText
 import Digram
 import EnnGram
 
-data Candidate = Candidate String Length Count
+data Candidate = Candidate B.ByteString Count
   deriving (Show, Eq)
 
 instance Ord Candidate where
-  compare (Candidate s1 l1 c1) (Candidate s2 l2 c2) =
+  compare (Candidate s1 c1) (Candidate s2 c2) =
+    let l1 = B.length s1
+        l2 = B.length s2 in
     case (comparing $ uncurry compressionGain)
            (l1, c1) (l2, c2) of
       GT -> GT
@@ -51,11 +50,12 @@ makeCandidates mp dt = mergeBy (flip compare) ennGrams diGrams
                 $ assocs dt
         digramCount (_, count) = count
         digramToCand (di, count) =
-            Candidate (unDigram di) 2 count
+            Candidate (unDigram di) count
         worstDigramGain =
             if diGrams `longerThan` (maxCompressions - 1)
-            then let Candidate _ l c = head $ reverse diGrams
-                 in compressionGain l c
+            then let Candidate s c = head $ reverse diGrams
+                 -- B.length s should always be 2 (that's what a Digram is...)
+                 in compressionGain (B.length s) c
             else 0
         -- can't `take maxCompressions' here because if the
         -- text contains AVeryLongString more than once, the
@@ -67,10 +67,7 @@ makeCandidates mp dt = mergeBy (flip compare) ennGrams diGrams
                  $ map fullEGToCand
                  $ getEnnGrams worstDigramGain mp
         fullEGToCand :: (FullEnnGram, CombineState2) -> Candidate
-        fullEGToCand (fe@(FullEnnGram eg _), CS2 (_, count)) =
-          Candidate (fullEnnGramToString fe)
-                    (ennLength eg)
-                    count
+        fullEGToCand (FullEnnGram eg, CS2 (_, count)) = Candidate eg count
 
 getNextCandidates :: [Candidate] -> [Candidate]
 getNextCandidates [] = []
@@ -89,31 +86,31 @@ getNextCandidates (x:xs) = x:(getNextCandidates rest)
 -- require to sort the resulting list again and I'm afraid
 -- of the extra complexity.
 dropSafeOverlap :: Candidate -> Candidate -> Bool
-dropSafeOverlap (Candidate chosen lch cch)
-                (Candidate other lot cot) =
+dropSafeOverlap (Candidate chosen cch)
+                (Candidate other cot) =
      cch == cot
-  && lch > lot
-  && other `isInfixOf` chosen
+  && B.length chosen > B.length other
+  && other `B.isInfixOf` chosen
 
 overlaps :: Candidate -> Candidate -> Bool
-overlaps (Candidate chosen lc _) (Candidate other lo _) =
-     or (map (`isPrefixOf` other)
-         $ filter (not . null)
-         $ tails chosen)
-  || or (map (`isPrefixOf` chosen)
-         $ filter (not . null)
-         $ tails other)
-  || let (shorter, longer) = if lc > lo
+overlaps (Candidate chosen _) (Candidate other _) =
+     or (map (`B.isPrefixOf` other)
+         $ filter (not . B.null)
+         $ B.tails chosen)
+  || or (map (`B.isPrefixOf` chosen)
+         $ filter (not . B.null)
+         $ B.tails other)
+  || let (shorter, longer) = if B.length chosen > B.length other
                              then (other, chosen)
                              else (chosen, other)
-     in shorter `isInfixOf` longer
+     in shorter `B.isInfixOf` longer
 
 getEnnGrams :: Int -> EnnGramMap -> [(FullEnnGram, CombineState2)]
 getEnnGrams floor = filter ((> floor) . compressionGain')
                    . toList
   where ascendingEnnGain x y = (compare `on` compressionGain') y x
-        compressionGain' (FullEnnGram ng _, CS2 (_, count)) =
-          compressionGain (ennLength ng) count
+        compressionGain' (FullEnnGram ng, CS2 (_, count)) =
+          compressionGain (B.length ng) count
 
 mergeBy _ xs [] = xs
 mergeBy _ [] ys = ys

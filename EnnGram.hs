@@ -8,12 +8,12 @@ module EnnGram (
 , ennLength
 , ennOffs
 , ennString
-, fullEnnGramToString
 , mkEnnGram
 , showEnnGramMap
 ) where
 
 import qualified Data.Array as A
+import qualified Data.ByteString as B
 import Data.List (sortBy)
 import Data.Word (Word32)
 import Data.Array ((!))
@@ -28,37 +28,30 @@ import Digram
 
 newtype EnnGram = EnnGram Word32
 
-data FullEnnGram = FullEnnGram EnnGram InputText
+-- Not ShortByteString: all FullEnnGram share the same input string (the
+-- complete input text)
+newtype FullEnnGram = FullEnnGram { fullEnnGramToString :: B.ByteString }
 
-fullEnnGramToString (FullEnnGram ng it) =
-    runReader (ennString ng) it
+--fullEnnGramToString (FullEnnGram ng it) =
+--    runReader (ennString ng) it
 
 instance Show FullEnnGram where
-  show = fullEnnGramToString
+  show = map (chr . fromIntegral) . B.unpack . fullEnnGramToString
 
 instance Eq FullEnnGram where
   f == g = (compare f g) == EQ
 
 instance Ord FullEnnGram where
-  compare (FullEnnGram s e) (FullEnnGram t f)
+  compare (FullEnnGram s) (FullEnnGram t)
     -- This isn't lexicographically ordering (we compare on length first) but
     -- any stable/strict ordering will do for Map insertion and looking at the
     -- length first should be cheaper (actually not measured)
     | sLen > tLen = GT
     | sLen < tLen = LT
     -- See note on profiling below
-    | sLen == tLen = foldr cpComp EQ [0..fromIntegral sLen - 1]
-    where sLen = ennLength s
-          tLen = ennLength t
-          sIdx = ennOffs s
-          tIdx = ennOffs t
-          cpComp offs res =
-              let sCp = e ! (sIdx + offs)
-                  tCp = f ! (tIdx + offs)
-                  comp = compare sCp tCp
-              in case comp of
-                   EQ -> res
-                   otherwise -> comp
+    | sLen == tLen = compare s t
+    where sLen = B.length s
+          tLen = B.length t
 
 -- Profiling showed that the original implementation of compare was allocating a lot
 -- I tried different implementations with these results:
@@ -167,12 +160,12 @@ mkEnnGram offs len =
         maxLen = 1 `shift` lenWidth
         lenWidth = 12 -- bits
 
-ennString :: EnnGram -> Reader InputText String
+ennString :: EnnGram -> Reader InputText B.ByteString
 ennString x = do
   txt <- ask
   let len = fromIntegral $ ennLength x
   let offs = fromIntegral $ ennOffs x
-  return $ foldr (\idx t -> (chr' $ txt A.! idx):t) [] [offs..(offs + len - 1)]
+  return . B.pack $ foldr (\idx t -> (txt `B.index` idx):t) [] [offs..(offs + len - 1)]
  where chr' = chr . fromInteger . toInteger
 
 ennOffs :: EnnGram -> Offset
@@ -191,11 +184,11 @@ showEnnGramMap = map showKeyVal
                . toList
   where showKeyVal (f, CS2 (_, count)) = show (f, count)
         compareGain x y = (compare `on` compressionGain') y x
-        compressionGain' (FullEnnGram ng _, CS2 (_, count)) =
-          compressionGain (ennLength ng) count
-        compresses (FullEnnGram ng _, CS2 (_, count)) =
-          (ennLength ng == 3) && (count > 2)
-          || (ennLength ng > 3) && (count > 1)
+        compressionGain' (FullEnnGram ng, CS2 (_, count)) =
+          compressionGain (B.length ng) count
+        compresses (FullEnnGram ng, CS2 (_, count)) =
+          (B.length ng == 3) && (count > 2)
+          || (B.length ng > 3) && (count > 1)
         -- found `on' with Hoogle but not in Hugs?
         on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
         on f g x y = f (g x) (g y)
@@ -205,7 +198,7 @@ ennGramMap txt = (mp, dt)
   where dt = digramTable txt
         mapfun :: InputText -> (EnnGram, CombineState2)
                   -> (FullEnnGram, CombineState2)
-        mapfun txt (ng, cs2) = (FullEnnGram ng txt, cs2)
+        mapfun txt (ng, cs2) = (FullEnnGram . B.take (ennLength ng) . B.drop (ennOffs ng) $ txt, cs2)
         mp = fromListWithKey combine2
            $ map (mapfun txt)
            $ makeEnnGramList txt dt
@@ -224,9 +217,9 @@ ennGramMap txt = (mp, dt)
 makeEnnGramList :: InputText -> DigramTable
                 -> [(EnnGram, CombineState2)]
 makeEnnGramList txt dt = el
-  where (_, _, el) = foldEnumArray (combine1 txt dt)
-                                   (0::Offset, initDigram, [])
-                                   txt
+  where (_, _, el) = foldEnumByteString (combine1 txt dt)
+                                        (0::Offset, initDigram, [])
+                                        txt
 
 -- CombineState1:
 -- - Offset: all substrings to prepend to the tail should
@@ -330,9 +323,9 @@ newtype CombineState2 = CS2 (Offset, Count)
 -- combine2 :: {Key} -> {New Value} -> {Old Value} -> {Combined Value}
 combine2 :: FullEnnGram -> CombineState2 -> CombineState2
          -> CombineState2
-combine2 f@(FullEnnGram ng _)
+combine2 f@(FullEnnGram ng)
          prev@(CS2 (prev_o, prev_c))
          next@(CS2 (next_o, next_c)) =
-  if prev_o <= (next_o - (fromIntegral $ ennLength ng))
+  if prev_o <= (next_o - (fromIntegral $ B.length ng))
   then CS2 (prev_o, next_c + 1)
   else next

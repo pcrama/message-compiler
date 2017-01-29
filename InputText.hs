@@ -8,23 +8,22 @@ module InputText (
 where
 
 import qualified Data.Array as A
+import qualified Data.ByteString as B
 import Data.Traversable (traverse)
 import Data.Char (ord)
 import Data.Word (Word8)
 import Debug.Trace (trace)
+import Data.List (intercalate)
 
 import Utils
 
 type Codepoint = Word8
 
-type InputText = A.Array Offset Codepoint
+type InputText = B.ByteString
 
 toCodepoints :: [String] -> Maybe InputText
-toCodepoints xs = do
-  asCodepoints <- traverse stringToCodepoint xs
-  let all = concat asCodepoints
-  return $ A.array (0, length all - 1)
-                   (zipWith (,) [0..] all)
+toCodepoints = fmap (B.pack . intercalate [fromIntegral stringSeparationCP])
+             . traverse (traverse charToCodepoint)
 
 validCodepoint :: Char -> Bool
 validCodepoint x = (x >= '\x20') && (x < '\xa0')
