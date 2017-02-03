@@ -12,6 +12,10 @@ newtype Reader a b = Reader { runReader :: a -> b }
 instance Functor (Reader a) where
   fmap f (Reader g) = Reader $ f . g
 
+instance Applicative (Reader a) where
+  pure = Reader . const
+  (Reader rf) <*> (Reader rv) = Reader (\e -> rf e $ rv e)
+
 instance Monad (Reader a) where
   return = Reader . const
   (Reader a) >>= k = Reader $ \x ->
