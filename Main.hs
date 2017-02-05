@@ -14,6 +14,7 @@ import Digram
 import EnnGram
 import InputText
 import CandidateSelection
+import Compression
 
 readLicense :: IO InputText
 readLicense = do
