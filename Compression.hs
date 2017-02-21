@@ -7,6 +7,7 @@ import Data.ByteString.Builder
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Search as BS
+import Data.Array (Array, array, (!))
 
 import InputText
 import CandidateSelection
@@ -17,6 +18,34 @@ data ReplacementInfo = ReplacementInfo { lenToReplace :: Int -- how many bytes t
                                        , positions :: [Int] -- positions where this replacement can be made
                                        }
   deriving (Show, Eq)
+
+decompress :: InputText -> [(Codepoint, B.ByteString)] -> B.ByteString
+decompress it cpAssoc = BL.toStrict
+                      $ toLazyByteString
+                      $ decompressBS it $ decompressionMap cpAssoc
+
+type DecompressionMap = Array Codepoint Builder
+
+-- assume the mapping is sorted by ascending Codepoint
+decompressionMap :: [(Codepoint, B.ByteString)] -> DecompressionMap
+decompressionMap cpAssoc = all
+  where all = array (minBound, maxBound)
+                  $ mergePrefer2nd [(x, word8 x) | x <- [minBound..maxBound]] cpAssoc
+        recursiveDecompress = flip decompressBS all
+        mergePrefer2nd :: [(Codepoint, Builder)] -> [(Codepoint, B.ByteString)] -> [(Codepoint, Builder)]
+        mergePrefer2nd [] ys = map (\(cp, bs) -> (cp, recursiveDecompress bs)) ys
+        mergePrefer2nd xs [] = xs
+        mergePrefer2nd (xx@(x, builderX):xs) yy@((y, bsY):ys)
+            | x == y    = (y, recursiveDecompress bsY):mergePrefer2nd xs ys
+            | otherwise = xx:mergePrefer2nd xs yy
+
+decompressBS :: B.ByteString -> DecompressionMap -> Builder
+decompressBS it cpMap =  B.foldl' (\soFar new -> mappend soFar $ decompressCodePoint cpMap new)
+                                  mempty
+                                  it
+
+decompressCodePoint :: DecompressionMap -> Codepoint -> Builder
+decompressCodePoint cpMap cp = cpMap ! cp
 
 applyCompression :: InputText -> [(Candidate, Codepoint)] -> InputText
 applyCompression input cands =
