@@ -46,5 +46,11 @@ on f g x y = f (g x) (g y)
 -- how many `special chars' are available to represent substrings
 maxCompressions = 64 :: Int
 
+-- last codepoint that represents itself, not a substring.
+-- Note: lastPlainCodepoint + maxCompressions <= (maxBound :: CodePoint)
+lastPlainCodepoint = 191 :: Int
+
+firstCompressionMarker = lastPlainCodepoint + 1
+
 longerThan [] x = x < 0
 longerThan (x:xs) len = longerThan xs (len - 1)
