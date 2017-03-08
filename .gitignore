@@ -2,3 +2,4 @@ README.html
 strings.txt
 *.o
 *.hi
+.stack-work/
