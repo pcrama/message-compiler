@@ -1,25 +1,30 @@
 module TestDigram (
   testDigram
+, testDigramTable
 , oneTest
 ) where
 
 import Data.Array
-import Data.Word (Word16)
 import Data.Traversable (traverse)
+import qualified Data.ByteString as B
 
 import InputText
 import Digram
+import Utils
 
-testDigramTable :: Either (Maybe [(String, Int)]) Bool
-testDigramTable = do
-  testDigram [""] []
-  testDigram ["abcd"] [("ab",1),("bc",1),("cd",1)]
-  testDigram ["abcd","abcd"] [("ab",2),("bc",2),("cd",2)]
-  testDigram ["ab","cd"] [("ab",1),("cd",1)]
-  testDigram ["aaaa"] [("aa",2)]
-  testDigram ["bbbb","bbbbbbbb"] [("bb",6)]
-  return True
+testDigramTable :: Either (Maybe [(B.ByteString, Int)]) Bool
+testDigramTable =
+     testDigram [""] []
+  >> testDigram ["abcd"] [("ab",1),("bc",1),("cd",1)]
+  >> testDigram ["abcd","abcd"] [("ab",2),("bc",2),("cd",2)]
+  >> testDigram ["ab","cd"] [("ab",1),("cd",1)]
+  >> testDigram ["aaaa"] [("aa",2)]
+  >> testDigram ["bbbb","bbbbbbbb"] [("bb",6)]
+  >> return True
 
+testDigram :: [String] -> [(String, Int)]
+           -> Either (Maybe [(B.ByteString, Utils.Count)])
+                     [(B.ByteString, Utils.Count)]
 testDigram ss exp_dt = case oneTest ss $ fakeDigramTable exp_dt of
   Left Nothing -> Left Nothing
   Left (Just x) -> Left . Just $ summarizeDigramTable x
@@ -44,16 +49,3 @@ oneTest ss exp_dt = case toCodepoints ss of
                  then Right
                  else Left . Just) obs_dt
   Nothing -> Left Nothing
-  
-foldArray :: (Num a, Ix a) => (b -> c -> b) -> b -> Array a c -> b
-foldArray f base arr = go min base
-  where (min, max) = bounds arr
-        go idx acc | idx == max = acc
-                   | otherwise = let fax = f acc (arr ! idx) in
-                                  fax `seq` go (idx + 1) fax
-
-sumTo :: Word16 -> Word16
-sumTo x = go 0 0
-  where go idx acc | idx > x = acc
-                   | otherwise = let su = idx + acc in
-                       su `seq` go (idx + 1) su

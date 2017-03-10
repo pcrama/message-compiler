@@ -40,3 +40,22 @@ library
                      , InputText
                      , Reader
                      , Utils
+
+test-suite reference
+  hs-source-dirs:      test
+  main-is:             Suite.hs
+  default-language:    Haskell2010
+  type:                exitcode-stdio-1.0
+  ghc-options:         -Wall
+  build-depends:       base >= 4.7 && < 5
+                     , array >= 0.5.1.1 && < 1
+                     , bytestring >= 0.10.1.1 && < 1
+                     , containers >= 0.5.7.1 && < 1
+                     , stringsearch >= 0.3.6.6 && < 1
+                     , test-framework
+                     , test-framework-hunit
+                     , test-framework-quickcheck2
+                     , HUnit
+                     , QuickCheck
+                     , message-compiler
+  other-modules:       TestDigram
