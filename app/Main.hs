@@ -2,15 +2,11 @@ module Main
 
 where
 
-import Data.Ix (Ix, range)
-import Data.Array ((!), Array, accumArray, array, bounds)
 import Data.Char (ord, chr)
-import Data.List (sortBy, unfoldr, foldl')
-import Data.Map (Map, fromListWithKey, size, toList)
+import Data.List (sortBy, foldl')
 import qualified Data.ByteString as B
 
 import Utils
-import Digram
 import EnnGram
 import InputText
 import CandidateSelection
@@ -19,6 +15,8 @@ import Compression
 readLicense :: IO InputText
 readLicense = do
   theText <- readFile "LICENSE"
+  -- using `lines' loses information whether `theText' finished with
+  -- '\n' or not: lines "a\nb" == lines "a\nb\n"
   let Just txt = toCodepoints $ lines theText
   return txt
 
@@ -43,12 +41,10 @@ doCompr cps it = cutOffCandidates . sortAssocList $ go [] cps it
                 compressed = applyCompression txt $ zip cands rep1
             in case cands of
                  [] -> (cpAssoc, txt)
-                 otherwise -> go (zipWith (\cp (Candidate bs _) -> (cp, bs))
-                                          rep1
-                                          cands
-                                  ++ cpAssoc)
-                                 rep2
-                                 compressed
+                 _ -> go (   zipWith (\cp (Candidate bs _) -> (cp, bs)) rep1 cands
+                          ++ cpAssoc)
+                         rep2
+                         compressed
         sortAssocList :: ([(Codepoint, B.ByteString)], InputText)
                       -> ([(Codepoint, B.ByteString)], InputText)
         sortAssocList (cpAssoc, txt) = (sortBy (compare `on` fst) cpAssoc, txt)
@@ -68,8 +64,8 @@ doCompr cps it = cutOffCandidates . sortAssocList $ go [] cps it
 cutUp :: [Int] -> B.ByteString -> [B.ByteString]
 cutUp revIndices s = fst $ foldl' popOne ([], s) revIndices
   where popOne :: ([B.ByteString], B.ByteString) -> Int -> ([B.ByteString], B.ByteString)
-        popOne (res, s) idx = ((B.tail new):res, head)
-          where (head, new) = B.splitAt idx s
+        popOne (res, s) idx = ((B.tail new):res, hd)
+          where (hd, new) = B.splitAt idx s
 
 twoComprSteps :: IO ()
 twoComprSteps = do
@@ -84,6 +80,8 @@ twoComprSteps = do
 
 compressText :: String -> Maybe ([(Codepoint, B.ByteString)], InputText)
 compressText s = do
+  -- using `lines' loses information whether `s' finished with
+  -- '\n' or not: lines "a\nb" == lines "a\nb\n"
   txt <- toCodepoints $ lines s
   let replacements = take maxCompressions $ [fromIntegral firstCompressionMarker..]
   return $ doCompr replacements txt
@@ -104,9 +102,15 @@ allComprSteps = do
          B.putStr $ B.singleton 10
          B.putStr $ decompressed
          B.putStr $ B.singleton 10
-         putStrLn . show $ decompressed == B.pack (map (fromIntegral . ord) lic)
+         -- compare on `lines' to avoid ambiguity of separator between
+         -- text and substrings
+         putStrLn . show $ lines (b2s decompressed) == lines lic
 
+s2b :: String -> B.ByteString
 s2b = B.pack . map (fromIntegral . ord)
+
+b2s :: B.ByteString -> String
+b2s = map (chr . fromIntegral) . B.unpack
 
 propertyCompressionIsReversible :: String -> Bool
 propertyCompressionIsReversible s = maybe False decompressAndCheck $ compressText s
@@ -136,4 +140,5 @@ propertyAllCompressionsUsed = maybe False allUsed . compressText
           B.elem cp compressed || (any (B.elem cp . snd)
                                      $ filter ((/= cp) . fst) cpAssoc)
 
+main :: IO ()
 main = allComprSteps
