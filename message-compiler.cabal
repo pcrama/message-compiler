@@ -60,3 +60,4 @@ test-suite reference
                      , message-compiler
   other-modules:       TestDigram
                      , TestEnnGramMap
+                     , TestCandSel
