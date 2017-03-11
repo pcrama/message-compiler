@@ -9,16 +9,29 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit
 -- import Test.QuickCheck
 
-import TestDigram
+import qualified TestDigram
+import qualified TestEnnGramMap
 
 main :: IO ()
 main = defaultMainWithOpts
-       [ testCase "unittests" testUnitTests
+       [ testCase "unittests.Digram" testDigram
+       , testCase "unittests.EnnGramList" testMakeEnnGramList
+       , testCase "unittests.EnnGramMap" testMakeEnnGramMap
        -- , testProperty "listRevRevId" propListRevRevId
        ] mempty
 
-testUnitTests :: Assertion
-testUnitTests = TestDigram.testDigramTable @?= Right True
+assertRightTrue :: Show a => Either a Bool -> Assertion
+assertRightTrue z@(Left _) = assertFailure $ "Expected Right True, got " ++ show z
+assertRightTrue (Right z) = assertBool (show z ++ "is not True") z
+
+testDigram :: Assertion
+testDigram = assertRightTrue TestDigram.testDigramTable
+
+testMakeEnnGramMap :: Assertion
+testMakeEnnGramMap = assertRightTrue TestEnnGramMap.testMakeEnnGramMap
+
+testMakeEnnGramList :: Assertion
+testMakeEnnGramList = assertRightTrue TestEnnGramMap.testMakeEnnGramList
 
 -- propListRevRevId :: [Int] -> Property
 -- propListRevRevId xs = not (null xs) ==> reverse (reverse xs) == xs

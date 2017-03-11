@@ -1,6 +1,12 @@
-module TestEnnGramMap where
+module TestEnnGramMap (
+    testMakeEnnGramMap
+  , testMakeEnnGramList
+)
+
+where
 
 import Data.List (sortBy)
+import qualified Data.ByteString as B
 import qualified Data.Map as M
 import Debug.Trace (trace)
 
@@ -8,7 +14,6 @@ import Utils
 import Digram
 import EnnGram
 import InputText
-import Main
 
 --traceShow x = trace ( show x) x
 traceShow = id
@@ -116,7 +121,7 @@ oneTestMakeEnnGramMap sl exp
             case M.lookup key mp of
               Just (CS2 (_, c)) -> c == count
               Nothing -> False
-          where key = FullEnnGram ng it
+          where key = FullEnnGram . B.take (ennLength ng) . B.drop (ennOffs ng) $ it
                 Just ng = mkEnnGram offs len
 
 testMakeEnnGramMap :: Either ([String]
