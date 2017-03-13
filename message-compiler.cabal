@@ -39,6 +39,7 @@ library
                      , EnnGram
                      , InputText
                      , Reader
+                     , TopFunctions
                      , Utils
 
 test-suite reference
