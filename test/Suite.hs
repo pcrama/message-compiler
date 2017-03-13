@@ -5,13 +5,14 @@ where
 import Data.Monoid ()
 import Test.Framework
 import Test.Framework.Providers.HUnit
--- import Test.Framework.Providers.QuickCheck2
+import Test.Framework.Providers.QuickCheck2
 import Test.HUnit
--- import Test.QuickCheck
+import Test.QuickCheck
 
 import qualified TestDigram
 import qualified TestEnnGramMap
 import qualified TestCandSel
+import qualified Properties
 
 main :: IO ()
 main = defaultMainWithOpts
@@ -22,7 +23,9 @@ main = defaultMainWithOpts
        , testCase "unittests.CandSelDropSafeOverlap" testDropSafeOverlap
        , testCase "unittests.CandSelOverlaps" testOverlaps
        , testCase "unittests.CandSelGetNextCnd" testGetNextCandidates
-       -- , testProperty "listRevRevId" propListRevRevId
+       , testProperty "prop.compressDecompressId" propCompressDecompressId
+       , testProperty "prop.compressionSavesSpace" propCompressSavesSpace
+       , testProperty "prop.allCompressionsUsed" propAllCompressionsUsed
        ] mempty
 
 assertRightTrue :: Show a => Either a Bool -> Assertion
@@ -50,5 +53,11 @@ testOverlaps = assertRightTrue TestCandSel.testOverlaps
 testGetNextCandidates :: Assertion
 testGetNextCandidates = assertRightTrue TestCandSel.testGetNextCandidates
 
--- propListRevRevId :: [Int] -> Property
--- propListRevRevId xs = not (null xs) ==> reverse (reverse xs) == xs
+propCompressDecompressId :: Property
+propCompressDecompressId = property $ Properties.propertyCompressionIsReversible
+
+propCompressSavesSpace :: Property
+propCompressSavesSpace = property $ Properties.propertyCompressionSavesSpace
+
+propAllCompressionsUsed :: Property
+propAllCompressionsUsed = property $ Properties.propertyAllCompressionsUsed

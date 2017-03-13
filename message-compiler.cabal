@@ -62,3 +62,4 @@ test-suite reference
   other-modules:       TestDigram
                      , TestEnnGramMap
                      , TestCandSel
+                     , Properties
