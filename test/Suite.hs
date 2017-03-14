@@ -24,7 +24,7 @@ main = defaultMainWithOpts
        , testCase "unittests.CandSelOverlaps" testOverlaps
        , testCase "unittests.CandSelGetNextCnd" testGetNextCandidates
        , testProperty "prop.compressDecompressId" propCompressDecompressId
-       , testProperty "prop.compressionSavesSpace" propCompressSavesSpace
+       , testProperty "prop.compressionSavesSpaceOrId" propCompressSavesSpaceOrId
        , testProperty "prop.allCompressionsUsed" propAllCompressionsUsed
        ] mempty
 
@@ -56,8 +56,8 @@ testGetNextCandidates = assertRightTrue TestCandSel.testGetNextCandidates
 propCompressDecompressId :: Property
 propCompressDecompressId = property $ Properties.propertyCompressionIsReversible
 
-propCompressSavesSpace :: Property
-propCompressSavesSpace = property $ Properties.propertyCompressionSavesSpace
+propCompressSavesSpaceOrId :: Property
+propCompressSavesSpaceOrId = property $ Properties.propertyCompressionSavesSpaceOrId
 
 propAllCompressionsUsed :: Property
 propAllCompressionsUsed = property $ Properties.propertyAllCompressionsUsed

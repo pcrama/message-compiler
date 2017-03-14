@@ -1,6 +1,6 @@
 module Properties (
     propertyCompressionIsReversible
-  , propertyCompressionSavesSpace
+  , propertyCompressionSavesSpaceOrId
   , propertyAllCompressionsUsed
 )
 
@@ -43,11 +43,15 @@ propertyCompressionIsReversible (IS s) = maybe False decompressAndCheck $ compre
                GT -> comp a b lenB
                LT -> comp b a lenA
 
-propertyCompressionSavesSpace :: InputString -> Bool
-propertyCompressionSavesSpace (IS s) = maybe False savesSpace $ compressText s
+-- if any codepoint is used to represent a substring, the total effect
+-- must be one of size reduction.  If no compression was done, the
+-- size is unchanged.
+propertyCompressionSavesSpaceOrId :: InputString -> Bool
+propertyCompressionSavesSpaceOrId (IS s) = maybe False savesSpace $ compressText s
   where savesSpace (cpAssoc, compressed) =
-           (sum $ map ((1+) . B.length . snd) cpAssoc) + B.length compressed
-         < length s
+            null cpAssoc && B.length compressed == length s
+         ||   (sum $ map ((1+) . B.length . snd) cpAssoc) + B.length compressed
+            < length s
 
 propertyAllCompressionsUsed :: InputString -> Bool
 propertyAllCompressionsUsed = maybe False allUsed . compressText . unIS
