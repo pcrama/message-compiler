@@ -51,7 +51,7 @@ doCompr cps it = cutOffCandidates . sortAssocList $ go [] cps it
             let candCount = length lst
                 (sepIndices, _) = splitAt candCount
                                         $ reverse $ B.findIndices (== stringSeparationCP) it
-                comprEnd = last sepIndices
+                comprEnd = if null sepIndices then B.length it else last sepIndices
             in ((zip (map fst lst) $ cutUp sepIndices it), fst $ B.splitAt comprEnd it)
 
 -- cut up ByteString in pieces marked by list of indices (assumed to be
