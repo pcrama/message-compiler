@@ -15,7 +15,7 @@ import Data.Array ((!), Array, accumArray, array, bounds)
 import Data.Bits ((.&.), (.|.), shift)
 import Data.List (foldl')
 import Data.Ix (Ix, range)
-import Data.Char (chr, ord)
+import Data.Char (chr)
 import Data.Word (Word16)
 import qualified Data.ByteString as B
 
@@ -52,7 +52,7 @@ shiftDigram c (Digram x) = Digram $
 
 stringBoundary :: Digram -> Bool
 stringBoundary (Digram x) = ((x `shift` (-8)) == fromInteger stringSeparationCP)
-                         || ((x .&. 255) == fromIntegral stringSeparationCP)
+                         || ((x .&. 255) == fromInteger stringSeparationCP)
 
 -- Return array from Digram to occurence count.  This info
 -- will be used to abort generation of EnnGram candidates to

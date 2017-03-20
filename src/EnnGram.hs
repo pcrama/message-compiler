@@ -166,7 +166,6 @@ ennString x = do
   let len = fromIntegral $ ennLength x
   let offs = fromIntegral $ ennOffs x
   return . B.pack $ foldr (\idx t -> (txt `B.index` idx):t) [] [offs..(offs + len - 1)]
- where chr' = chr . fromInteger . toInteger
 
 ennOffs :: EnnGram -> Offset
 ennOffs (EnnGram x) = fromIntegral $ x `shift` (0 - 12)
@@ -189,9 +188,6 @@ showEnnGramMap = map showKeyVal
         compresses (FullEnnGram ng, CS2 (_, count)) =
           (B.length ng == 3) && (count > 2)
           || (B.length ng > 3) && (count > 1)
-        -- found `on' with Hoogle but not in Hugs?
-        on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
-        on f g x y = f (g x) (g y)
 
 ennGramMap :: InputText -> (EnnGramMap, DigramTable)
 ennGramMap txt = (mp, dt)
@@ -217,7 +213,7 @@ ennGramMap txt = (mp, dt)
 makeEnnGramList :: InputText -> DigramTable
                 -> [(EnnGram, CombineState2)]
 makeEnnGramList txt dt = el
-  where (_, _, el) = foldEnumByteString (combine1 txt dt)
+  where (_, _, el) = foldEnumByteString (combine1 dt)
                                         (0::Offset, initDigram, [])
                                         txt
 
@@ -268,10 +264,9 @@ type CombineState1 = (Offset, Digram, [(EnnGram, CombineState2)])
 --                prOffs /   \ offs
 --     Needs enqueuing 56789, 6789 and 789 (assumes that 89
 --     occurs at least twice.
-combine1 :: InputText -> DigramTable ->
-            (Offset, Codepoint) -> CombineState1 ->
+combine1 :: DigramTable -> (Offset, Codepoint) -> CombineState1 ->
             CombineState1
-combine1 inpTxt digTab (offs, cp) prev@(prOffs, prDigram, prTail)
+combine1 digTab (offs, cp) (prOffs, prDigram, prTail)
     | (((offs - prOffs) == 1 && (maxOccur > 1))
        || (offs == prOffs)) =
        warmup prOffs newDigram prTail
@@ -323,8 +318,8 @@ newtype CombineState2 = CS2 (Offset, Count)
 -- combine2 :: {Key} -> {New Value} -> {Old Value} -> {Combined Value}
 combine2 :: FullEnnGram -> CombineState2 -> CombineState2
          -> CombineState2
-combine2 f@(FullEnnGram ng)
-         prev@(CS2 (prev_o, prev_c))
+combine2 (FullEnnGram ng)
+         (CS2 (prev_o, _prev_c))
          next@(CS2 (next_o, next_c)) =
   if prev_o <= (next_o - (fromIntegral $ B.length ng))
   then CS2 (prev_o, next_c + 1)

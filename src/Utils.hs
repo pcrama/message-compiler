@@ -21,6 +21,7 @@ stringSeparationCP = 0
 -- constants allow to avoid calling compressionGain during
 -- predicates where the length of the Digram or EnnGram is
 -- already known.
+minCountLen2, minCountLen3, minCountLen4 :: Length
 minCountLen2 = head $ dropWhile ((<=0) . (compressionGain 2)) [2..]
 minCountLen3 = head $ dropWhile ((<=0) . (compressionGain 3)) [2..]
 minCountLen4 = head $ dropWhile ((<=0) . (compressionGain 4)) [2..]
@@ -44,13 +45,17 @@ on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 on f g x y = f (g x) (g y)
 
 -- how many `special chars' are available to represent substrings
-maxCompressions = 64 :: Int
+maxCompressions :: Int
+maxCompressions = 64
 
 -- last codepoint that represents itself, not a substring.
 -- Note: lastPlainCodepoint + maxCompressions <= (maxBound :: CodePoint)
-lastPlainCodepoint = 191 :: Int
+lastPlainCodepoint :: Int
+lastPlainCodepoint = 191
 
+firstCompressionMarker :: Int
 firstCompressionMarker = lastPlainCodepoint + 1
 
+longerThan :: (Num t, Ord t) => [a] -> t -> Bool
 longerThan [] x = x < 0
-longerThan (x:xs) len = longerThan xs (len - 1)
+longerThan (_:xs) len = longerThan xs (len - 1)
