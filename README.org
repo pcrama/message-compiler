@@ -15,6 +15,9 @@ byte.  Hence, replacing $n$ occurrences of a substring $l$ long yields
 a gain of $n l - n - (l + 1)$.
 ̇
 * First attempt
+Note that the code described in this section is deleted (still in the
+git history, of course).
+
 I used this problem as an opportunity to try out Haskell and made a
 first naive/greedy implementation.  Unfortunately, the code in
 =opt5.hs= takes more than 8min just to compute the list of all
@@ -51,6 +54,12 @@ This is going to be unbearably slow.
 To run it, you need to uncomment the =main= function at the bottom of
 =opt5.hs= and provide a =strings.txt=.
 
+* Second attempt
+- Better memory efficiency by using ByteString instead of String and
+  representing the substrings as parts of the original input text.
+- Try to reduce unnecessary work by using a table of two-letter
+  frequencies as upper bound of how often a substring containing these
+  can occur.
 * Space or Time Complexity
 
 This section is to keep notes about the expected orders of magnitude
@@ -67,3 +76,6 @@ $$ (L-1) + (L-2) + \ldots + 1 = \frac{L(L-1)}{2} $$
 The total number of substrings (assuming they are all distinct) is
 thus bounded by
 $$ M\frac{L(L-1)}{2} < 12192000 $$
+
+Thus it is impractical to keep track of the substring counts as arrays
+whose index represent somehow the substring.
