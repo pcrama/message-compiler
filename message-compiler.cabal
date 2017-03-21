@@ -63,3 +63,7 @@ test-suite reference
                      , TestEnnGramMap
                      , TestCandSel
                      , Properties
+
+-- Local Variables:
+-- compile-command: "stack build"
+-- End:
