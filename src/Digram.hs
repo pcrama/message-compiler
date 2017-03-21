@@ -11,7 +11,7 @@ module Digram (
 
 where
 
-import Data.Array ((!), Array, accumArray, array, bounds)
+import Data.Array ((!), Array, accumArray, bounds)
 import Data.Bits ((.&.), (.|.), shift)
 import Data.List (foldl')
 import Data.Ix (Ix, range)
@@ -68,14 +68,24 @@ digramTable :: InputText -> DigramTable
 digramTable txt =
     accumArray (+) 0 (minBound, maxBound) . map (flip (,) 1) $
       digramList
-  where digramList = filter (not . stringBoundary) . snd $
-                            B.foldl' tally (False, [Digram 0]) txt
-        tally :: (Bool, [Digram]) -> Codepoint -> (Bool, [Digram])
-        tally (riskOverlap, z@(x:_)) c =
-          let newDigram = shiftDigram c x in
-           if riskOverlap && (newDigram == x)
-           then (False, z)
-           else (True, newDigram:z)
+  where digramList = filter (not . stringBoundary) . nonEmptyToList $
+                            B.foldl' tally (False, Digram 0, []) txt
+        -- tally uses a tuple of 3 values, but the 2 last values could
+        -- be gathered in a non-empty list.  Either way, using a
+        -- 2-tuple (Bool, [Digram]) results in a compiler warning
+        -- because there's no proof that the second element will never
+        -- be an empty list.  By making the non-empty list explicit,
+        -- the compiler can see that the case analysis is exhaustive.
+        tally :: (Bool, Digram, [Digram]) -> Codepoint -> (Bool, Digram, [Digram])
+        tally (riskOverlap, hd, tl) c =
+          let newDigram = shiftDigram c hd in
+           if riskOverlap && (newDigram == hd)
+           then (False, hd, tl)
+           else (True, newDigram, hd:tl)
+        -- make a proper list from the non-empty list represented by
+        -- the last 2 elements of tally's state:
+        nonEmptyToList :: (a, b, [b]) -> [b]
+        nonEmptyToList (_, hd, tl) = hd:tl
 
 foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
 foldEnumArray fun base arr =
