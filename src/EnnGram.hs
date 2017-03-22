@@ -12,12 +12,11 @@ module EnnGram (
 , showEnnGramMap
 ) where
 
-import qualified Data.Array as A
 import qualified Data.ByteString as B
 import Data.List (sortBy)
 import Data.Word (Word32)
 import Data.Array ((!))
-import Data.Bits ((.&.), shift, Bits)
+import Data.Bits ((.&.), shift)
 import Data.Map (Map, fromListWithKey, toList)
 import Data.Char (chr)
 
@@ -45,11 +44,17 @@ instance Ord FullEnnGram where
   compare (FullEnnGram s) (FullEnnGram t)
     -- This isn't lexicographically ordering (we compare on length first) but
     -- any stable/strict ordering will do for Map insertion and looking at the
-    -- length first should be cheaper (actually not measured)
-    | sLen > tLen = GT
-    | sLen < tLen = LT
-    -- See note on profiling below
+    -- length first is a bit cheaper (mainly because there is less allocation)
+    --
+    -- NB: the implementation used to be
+    -- | sLen > tLen = GT
+    -- | sLen < tLen = LT
+    -- | sLen == tLen = compare s t
+    -- But (a) the compiler couldn't figure out that the case analysis was
+    -- complete and (b) it turned out that the current implementation was
+    -- slightly more efficient memory-wise (negligible time impact)
     | sLen == tLen = compare s t
+    | otherwise = compare sLen tLen
     where sLen = B.length s
           tLen = B.length t
 
@@ -192,9 +197,8 @@ showEnnGramMap = map showKeyVal
 ennGramMap :: InputText -> (EnnGramMap, DigramTable)
 ennGramMap txt = (mp, dt)
   where dt = digramTable txt
-        mapfun :: InputText -> (EnnGram, CombineState2)
-                  -> (FullEnnGram, CombineState2)
-        mapfun txt (ng, cs2) = (FullEnnGram . B.take (ennLength ng) . B.drop (ennOffs ng) $ txt, cs2)
+        mapfun :: InputText -> (EnnGram, CombineState2) -> (FullEnnGram, CombineState2)
+        mapfun it (ng, cs2) = (FullEnnGram . B.take (ennLength ng) . B.drop (ennOffs ng) $ it, cs2)
         mp = fromListWithKey combine2
            $ map (mapfun txt)
            $ makeEnnGramList txt dt
