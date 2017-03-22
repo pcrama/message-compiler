@@ -3,15 +3,13 @@ module CandidateSelection
 where
 
 import Data.Ord (comparing)
-import Data.List (sort
-                , sortBy
+import Data.List (sortBy
                 , break)
 import Data.Map (toList)
 import Data.Array (assocs)
 import qualified Data.ByteString as B
 
 import Utils
-import InputText
 import Digram
 import EnnGram
 
@@ -106,18 +104,18 @@ overlaps (Candidate chosen _) (Candidate other _) =
      in shorter `B.isInfixOf` longer
 
 getEnnGrams :: Int -> EnnGramMap -> [(FullEnnGram, CombineState2)]
-getEnnGrams floor = filter ((> floor) . compressionGain')
+getEnnGrams lowest = filter ((> lowest) . compressionGain')
                    . toList
-  where ascendingEnnGain x y = (compare `on` compressionGain') y x
-        compressionGain' (FullEnnGram ng, CS2 (_, count)) =
+  where compressionGain' (FullEnnGram ng, CS2 (_, count)) =
           compressionGain (B.length ng) count
 
+mergeBy :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
 mergeBy _ xs [] = xs
 mergeBy _ [] ys = ys
 mergeBy f xx@(x:xs) yy@(y:ys) =
   case f x y of
     GT -> y:mergeBy f xx ys
-    otherwise -> x:mergeBy f xs yy
+    _ -> x:mergeBy f xs yy
 
 merge :: Ord a => [a] -> [a] -> [a]
 merge = mergeBy compare
