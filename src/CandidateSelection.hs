@@ -51,9 +51,9 @@ makeCandidates mp dt = mergeBy (flip compare) ennGrams diGrams
             Candidate (unDigram di) count
         worstDigramGain =
             if diGrams `longerThan` (maxCompressions - 1)
-            then let Candidate s c = head $ reverse diGrams
+            then let Candidate _ c = head $ reverse diGrams
                  -- B.length s should always be 2 (that's what a Digram is...)
-                 in compressionGain (B.length s) c
+                 in compressionGain 2 c
             else 0
         -- can't `take maxCompressions' here because if the
         -- text contains AVeryLongString more than once, the
