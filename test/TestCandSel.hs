@@ -3,16 +3,17 @@ module TestCandSel (
   , testDropSafeOverlap
   , testOverlaps
   , testGetNextCandidates
+  , testMakeThenGetCandidates
 )
 
 where
 
+-- import Debug.Trace (trace)
 import Data.Char (ord)
 import qualified Data.ByteString as B
 
 import Utils
 import InputText
---import Digram
 import EnnGram
 import CandidateSelection
 
@@ -51,10 +52,12 @@ testMakeCandidates =
                            , ("bcd", 3), ("abc", 3)
                            , ("bcde", 2), ("abcd", 2)
                            , ("bc", 4)]
+  >> oneTestMakeCandidates ["aab", "aab", "aac", "abd", "aae", "abf", "aa"]
+                           [("aa", 5), ("ab", 4)]
 
 testDropSafeOverlap :: Either ((String, Count), (String, Count))
                               Bool
-testDropSafeOverlap = do
+testDropSafeOverlap =
        t "abcde" 4 "abcd" 4 True
    >>  t "abcde" 4 "bcde" 4 True
    >>  t "abcde" 4 "abc" 4 True
@@ -77,7 +80,7 @@ testDropSafeOverlap = do
           else Left ((a, c), (x, y))
 
 testOverlaps :: Either (String, String) Bool
-testOverlaps = do
+testOverlaps =
        t "abcd" "abc" True
    >>  t "abcd" "ca" True
    >>  t "abcd" "cab" True
@@ -117,7 +120,7 @@ oneTestGetNextCandidates a xpct =
   where obs = getNextCandidates $ map mkCand a
 
 testGetNextCandidates :: Either ([Candidate], [(String, Count)]) Bool
-testGetNextCandidates = do
+testGetNextCandidates =
      oneTestGetNextCandidates [("abcde", 4)
                               , ("abcd", 4)
                               , ("bcde", 4)
@@ -157,3 +160,61 @@ testGetNextCandidates = do
                               , ("def", 4)
                               , ("xy", 4)]
                               [("abcde", 4)]
+  -- see also oneTestMakeThenGetCandidates that integrates these 2 cases
+  >> oneTestGetNextCandidates [("aa", 6), ("ab", 5)]
+                              [("aa", 6)]
+  >> oneTestGetNextCandidates [("aa", 6), ("ab", 5), ("ff", 5)]
+                              [("aa", 6), ("ff", 5)]
+
+-- traceId :: Show x => x -> x
+-- traceId x = trace (show x) x
+
+oneTestMakeThenGetCandidates :: [String]
+                             -> [(String, Count)]
+                             -> Either ([String], [Candidate]) Bool
+oneTestMakeThenGetCandidates input xp =
+    if observed == map mkCand xp then Right True else Left (input, observed)
+  where observed = getNextCandidates
+                 $ uncurry makeCandidates
+                 $ ennGramMap
+                 $ maybe undefined id
+                 $ toCodepoints input
+
+testMakeThenGetCandidates :: Either ([String], [Candidate]) Bool
+testMakeThenGetCandidates =
+     oneTestMakeThenGetCandidates ["aab", "aab", "aac", "aad", "aae",
+                                   "aa", "ab", "ab", "ab",
+                                   "ff", "ff", "ff", "ff"]
+                                  -- *NOT* ("ab", 5) because it is
+                                  -- invalidated by ("aa", 6)
+                                  -- *NOT* ("ff", 4) because after we
+                                  -- dropped the better ("ab", 5), we
+                                  -- need to recount if ("ff", 4)
+                                  -- would beat the new "ab" count
+                                  -- after replacing all "aa". In this
+                                  -- case, it would, but see the next
+                                  -- test.
+                                  [("aa", 6)]
+  >> oneTestMakeThenGetCandidates ["aa", "aa", "aac", "aad", "aae",
+                                   "aa", "ab", "ab", "ab", "ab", "ab",
+                                   "ff", "ff", "ff", "ff"]
+                                  -- *NOT* ("ab", 5) because it is
+                                  -- invalidated by ("aa", 6)
+                                  -- *NOT* ("ff", 4) because after we
+                                  -- dropped the better ("ab", 5), we
+                                  -- need to recount if ("ff", 4)
+                                  -- would beat the new "ab" count
+                                  -- after replacing all "aa".  In
+                                  -- this case, it wouldn't, but see
+                                  -- the previous test.
+                                  [("aa", 6)]
+  >> oneTestMakeThenGetCandidates ["aab", "aab", "aac", "aad", "aae",
+                                   "aa", "ab", "ab", "ab",
+                                   "ff", "ff", "ff", "ff", "ff"]
+                                  -- *NOT* ("ab", 5) because it is
+                                  -- invalidated by ("aa", 6)
+                                  -- ("ff", 5) is independent of
+                                  -- ("ab", 5) and ("aa", 6) and just
+                                  -- as good as ("ab", 5) so we can
+                                  -- keep it
+                                  [("aa", 6), ("ff", 5)]

@@ -23,6 +23,8 @@ main = defaultMainWithOpts
        , testCase "unittests.CandSelDropSafeOverlap" testDropSafeOverlap
        , testCase "unittests.CandSelOverlaps" testOverlaps
        , testCase "unittests.CandSelGetNextCnd" testGetNextCandidates
+       , testCase "unittests.CandSelMakeThenGet"
+                $ assertRightTrue TestCandSel.testMakeThenGetCandidates
        , testProperty "prop.compressDecompressId" propCompressDecompressId
        , testProperty "prop.compressionSavesSpaceOrId" propCompressSavesSpaceOrId
        , testProperty "prop.allCompressionsUsed" propAllCompressionsUsed
