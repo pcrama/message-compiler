@@ -1,6 +1,7 @@
 module Reader (
   ask
 , asks
+, local
 , Reader
 , runReader
 )

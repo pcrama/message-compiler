@@ -7,12 +7,10 @@ module InputText (
 
 where
 
-import qualified Data.Array as A
 import qualified Data.ByteString as B
 import Data.Traversable (traverse)
 import Data.Char (ord)
 import Data.Word (Word8)
-import Debug.Trace (trace)
 import Data.List (intercalate)
 
 import Utils
@@ -22,7 +20,7 @@ type Codepoint = Word8
 type InputText = B.ByteString
 
 toCodepoints :: [String] -> Maybe InputText
-toCodepoints = fmap (B.pack . intercalate [fromIntegral stringSeparationCP])
+toCodepoints = fmap (B.pack . intercalate [fromInteger stringSeparationCP])
              . traverse (traverse charToCodepoint)
 
 validCodepoint :: Char -> Bool

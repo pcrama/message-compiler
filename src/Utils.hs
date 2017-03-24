@@ -4,7 +4,7 @@ where
 
 import Data.List (foldl')
 import Data.Ix (Ix, range)
-import Data.Array ((!), Array, accumArray, array, bounds)
+import Data.Array ((!), Array, bounds)
 import Data.Word (Word8)
 import qualified Data.ByteString as B
 
