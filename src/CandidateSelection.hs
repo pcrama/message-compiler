@@ -69,9 +69,27 @@ makeCandidates mp dt = mergeBy (flip compare) ennGrams diGrams
 
 getNextCandidates :: [Candidate] -> [Candidate]
 getNextCandidates [] = []
-getNextCandidates (x:xs) = x:(getNextCandidates rest)
-  where (rest, _) = break (overlaps x) $
-                          filter (not . dropSafeOverlap x) xs
+getNextCandidates (x:xs) = x:(getNextCandidates $ safeToKeep ++ sameGain)
+  where (safeToKeep, rest) = break (overlaps x)
+                                 $ filter (not . dropSafeOverlap x) xs
+        candComprGain (Candidate s c) = compressionGain (B.length s) c
+        -- `sameGain' are all candidates with the same gain as the
+        -- first element of `rest'.  We can't keep the first element
+        -- because it overlaps with `x' and as such after `x` is
+        -- replaced, its count may drop.  However, all other
+        -- candidates with the same gain that do not overlap can
+        -- already be used.
+        sameGain = case rest of
+                     [] -> []
+                     (y:ys) -> let gain = candComprGain y
+                               in foldr (keepOthersWithSameGain gain)
+                                        []
+                                        $ filter (not . overlaps x) ys
+        keepOthersWithSameGain g z zs =
+          if candComprGain z >= g
+          then z:zs
+          -- input list is sorted -> no need to look further once the gain decreases
+          else []
 
 -- These overlaps are safe to drop: when "abcdef" is a
 -- candidate, "abcde" or "bcdef" etc will be candidates,
