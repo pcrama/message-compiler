@@ -33,7 +33,9 @@ doCompr cps it = cutOffCandidates . sortAssocList $ go [] cps it
            -> ([(Codepoint, B.ByteString)], InputText)
         go cpAssoc [] txt = (cpAssoc, txt)
         go cpAssoc replacements txt =
-            let cands = getNextCandidates . uncurry makeCandidates $ ennGramMap txt
+            let cands = getNextCandidates
+                      . uncurry (makeCandidates $ length replacements)
+                      $ ennGramMap txt
                 (rep1, rep2) = splitAt (length cands) replacements
                 compressed = applyCompression txt $ zip cands rep1
             in case cands of

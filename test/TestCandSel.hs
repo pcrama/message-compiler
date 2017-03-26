@@ -10,12 +10,16 @@ where
 
 -- import Debug.Trace (trace)
 import Data.Char (ord)
+import Data.List (sort)
 import qualified Data.ByteString as B
 
 import Utils
 import InputText
 import EnnGram
 import CandidateSelection
+
+-- traceId :: Show x => x -> x
+-- traceId x = trace (show x) x
 
 mkCand :: (String, Count) -> Candidate
 mkCand (s, c) = Candidate (B.pack . map (fromIntegral . ord) $ s) c
@@ -26,7 +30,7 @@ oneTestMakeCandidates :: [String] -> [(String, Count)]
 oneTestMakeCandidates sl xpct =
   maybe (Right False) id $ do
     it <- toCodepoints sl
-    let cands = uncurry makeCandidates . ennGramMap $ it
+    let cands = uncurry (makeCandidates maxCompressions) . ennGramMap $ it
     if length cands == length xpct
        && and (zipWith (==) cands $ map mkCand xpct)
     then return $ Right True
@@ -53,7 +57,11 @@ testMakeCandidates =
                            , ("bcde", 2), ("abcd", 2)
                            , ("bc", 4)]
   >> oneTestMakeCandidates ["aab", "aab", "aac", "abd", "aae", "abf", "aa"]
-                           [("aa", 5), ("ab", 4)]
+                           -- but not ("ab", 4): makeCandidates takes
+                           -- the minimum number of Digram candidates
+                           -- and as a side-effect, they are already
+                           -- filtered not to overlap.
+                           [("aa", 5)]
 
 testDropSafeOverlap :: Either ((String, Count), (String, Count))
                               Bool
@@ -160,14 +168,13 @@ testGetNextCandidates =
                               , ("def", 4)
                               , ("xy", 4)]
                               [("abcde", 4)]
-  -- see also oneTestMakeThenGetCandidates that integrates these 2 cases
+  -- see also oneTestMakeThenGetCandidates that integrates these 3 cases
   >> oneTestGetNextCandidates [("aa", 6), ("ab", 5)]
                               [("aa", 6)]
   >> oneTestGetNextCandidates [("aa", 6), ("ab", 5), ("ff", 5)]
                               [("aa", 6), ("ff", 5)]
-
--- traceId :: Show x => x -> x
--- traceId x = trace (show x) x
+  >> oneTestGetNextCandidates [("!!", 16),("!!?", 5),("!?", 11),("**", 11),("++", 11),("--", 11),("//", 11),("00", 11),("11", 11),("22", 11),("33", 11),("44", 11),("55", 11),("66", 11),("77", 11),("88", 11),("99", 11),("AA", 11),("BB", 11),("CC", 11),("DD", 11),("EE", 11),("FF", 11),("GG", 11),("HH", 11),("II", 11),("JJ", 11),("KK", 11),("LL", 11),("MM", 11),("NN", 11),("OO", 11),("PP", 11),("QQ", 11),("RR", 11),("SS", 11),("TT", 11),("UU", 11),("VV", 11),("WW", 11),("XX", 11),("YY", 11),("ZZ", 11),("__", 11),("aa", 11),("bb", 11),("cc", 11),("dd", 11),("ee", 11),("ff", 11),("gg", 11),("hh", 11),("ii", 11),("jj", 11),("kk", 11),("ll", 11),("mm", 11),("nn", 11),("oo", 11),("pp", 11),("qq", 11),("rr", 11),("ss", 11),("tt", 11),("uu", 11)]
+                              [("!!", 16),("**", 11),("++", 11),("--", 11),("//", 11),("00", 11),("11", 11),("22", 11),("33", 11),("44", 11),("55", 11),("66", 11),("77", 11),("88", 11),("99", 11),("AA", 11),("BB", 11),("CC", 11),("DD", 11),("EE", 11),("FF", 11),("GG", 11),("HH", 11),("II", 11),("JJ", 11),("KK", 11),("LL", 11),("MM", 11),("NN", 11),("OO", 11),("PP", 11),("QQ", 11),("RR", 11),("SS", 11),("TT", 11),("UU", 11),("VV", 11),("WW", 11),("XX", 11),("YY", 11),("ZZ", 11),("__", 11),("aa", 11),("bb", 11),("cc", 11),("dd", 11),("ee", 11),("ff", 11),("gg", 11),("hh", 11),("ii", 11),("jj", 11),("kk", 11),("ll", 11),("mm", 11),("nn", 11),("oo", 11),("pp", 11),("qq", 11),("rr", 11),("ss", 11),("tt", 11),("uu", 11)]
 
 oneTestMakeThenGetCandidates :: [String]
                              -> [(String, Count)]
@@ -175,7 +182,7 @@ oneTestMakeThenGetCandidates :: [String]
 oneTestMakeThenGetCandidates input xp =
     if observed == map mkCand xp then Right True else Left (input, observed)
   where observed = getNextCandidates
-                 $ uncurry makeCandidates
+                 $ uncurry (makeCandidates maxCompressions)
                  $ ennGramMap
                  $ maybe undefined id
                  $ toCodepoints input
@@ -218,3 +225,34 @@ testMakeThenGetCandidates =
                                   -- as good as ("ab", 5) so we can
                                   -- keep it
                                   [("aa", 6), ("ff", 5)]
+  -- The idea of this test case is to check that when there are more
+  -- candidates than the number of candidates requested, the exact
+  -- number is returned (even if because of overlap, some candidates
+  -- were dropped along the way)
+  --
+  -- preconditions for test case are verified below
+  >> let alphabet = sort "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-*/_()"
+         intToString x = replicate 2 $ alphabet !! x
+         -- Utils.hs: compressionGain = (count - 1) * (fromIntegral len - 1) - 2
+         n = 11 -- 10 * 1 - 2 = 8
+         m = 6  --  5 * 2 - 2 = 8
+         spec1 = '!'
+         spec2 = '?'
+         t1 = [intToString x | x <- [0..maxCompressions + 2]]
+         t2 = [spec1, spec1]:t1 -- prepended literal should have nothing in common with `alphabet'
+         t3 = concat $ (replicate m [spec1, spec1, spec2]) -- "!!?"
+                      :(replicate n $ spec1:"a")           -- "!a"
+                      :(replicate n $ spec1:"b")           -- "!b"
+                      :(replicate n $ spec1:"c")           -- "!c"
+                      :replicate n t2
+     in either (Left . id)
+               -- verify preconditions for test case:
+               (Right . (&& compressionGain m 3 == compressionGain n 2
+                         && compressionGain n 2 > 0
+                         && length alphabet > maxCompressions
+                         && not (spec1 `elem` alphabet)
+                         && not (spec2 `elem` alphabet)
+                         && spec1 /= spec2))
+             $ oneTestMakeThenGetCandidates t3
+                                            $ ("!!", n + m):[(intToString x, n)
+                                                             | x <- [0..maxCompressions - 2]]

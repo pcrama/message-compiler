@@ -38,11 +38,12 @@ instance Ord Candidate where
               -- consistency with Eq instance.
               EQ -> compare s1 s2
 
-makeCandidates :: EnnGramMap -> DigramTable
+makeCandidates :: Int -> EnnGramMap -> DigramTable
                -> [Candidate]
-makeCandidates mp dt = mergeBy (flip compare) ennGrams diGrams
-  where diGrams = map digramToCand
-                $ take maxCompressions
+makeCandidates maxN mp dt = mergeBy (flip compare) ennGrams diGrams
+  where diGrams = take maxN
+                $ getNextCandidates
+                $ map digramToCand
                 $ sortBy (flip $ comparing digramCount)
                 $ filter ((>= minCountLen2) . digramCount)
                 $ assocs dt
@@ -50,7 +51,7 @@ makeCandidates mp dt = mergeBy (flip compare) ennGrams diGrams
         digramToCand (di, count) =
             Candidate (unDigram di) count
         worstDigramGain =
-            if diGrams `longerThan` (maxCompressions - 1)
+            if (not . null) diGrams && diGrams `longerThan` (maxN - 1)
             then let Candidate _ c = head $ reverse diGrams
                  -- B.length s should always be 2 (that's what a Digram is...)
                  in compressionGain 2 c

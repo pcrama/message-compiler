@@ -27,17 +27,17 @@ testWithLicense = readLicense >>= (
 firstComprBatch :: IO ()
 firstComprBatch = do
   lic <- readLicense
-  let cands = getNextCandidates . uncurry makeCandidates $ ennGramMap lic
+  let cands = getNextCandidates . uncurry (makeCandidates maxCompressions) $ ennGramMap lic
   B.putStr $ applyCompression lic $ zip cands [fromIntegral firstCompressionMarker..]
 
 twoComprSteps :: IO ()
 twoComprSteps = do
   lic <- readLicense
   let replacements = take maxCompressions $ [fromIntegral firstCompressionMarker..]
-  let cands1 = getNextCandidates . uncurry makeCandidates $ ennGramMap lic
+  let cands1 = getNextCandidates . uncurry (makeCandidates maxCompressions) $ ennGramMap lic
   let (rep1, rep2) = splitAt (length cands1) replacements
   let comp1 = applyCompression lic $ zip cands1 rep1
-  let cands2 = getNextCandidates . uncurry makeCandidates $ ennGramMap comp1
+  let cands2 = getNextCandidates . uncurry (makeCandidates $ length rep2) $ ennGramMap comp1
   let comp2 = applyCompression comp1 $ zip cands2 rep2
   B.putStr $ comp2
 
