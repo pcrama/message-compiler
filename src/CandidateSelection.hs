@@ -41,9 +41,9 @@ instance Ord Candidate where
 makeCandidates :: Int -> EnnGramMap -> DigramTable
                -> [Candidate]
 makeCandidates maxN mp dt = mergeBy (flip compare) ennGrams diGrams
-  where diGrams = take maxN
-                $ getNextCandidates
-                $ map digramToCand
+  where diGrams = map digramToCand
+                $ take maxN
+                $ getNextDigrams
                 $ sortBy (flip $ comparing digramCount)
                 $ filter ((>= minCountLen2) . digramCount)
                 $ assocs dt
@@ -68,6 +68,36 @@ makeCandidates maxN mp dt = mergeBy (flip compare) ennGrams diGrams
         fullEGToCand :: (FullEnnGram, CombineState2) -> Candidate
         fullEGToCand (FullEnnGram eg, CS2 (_, count)) = Candidate eg count
 
+-- Identical to getNextCandidates but specialised for Digrams only.
+getNextDigrams :: [(Digram, Count)] -> [(Digram, Count)]
+getNextDigrams [] = []
+getNextDigrams (x:xs) = x:(getNextDigrams $ safeToKeep ++ sameGain)
+  where (safeToKeep, rest) = break (overlapsDigram `on` fst $ x) xs
+                              -- there is no safe overlap for any 2 Digram combination
+                              -- so the filter operation is not needed.
+                              -- $ filter (not . dropSafeOverlap x) xs
+        -- No need to compute the gain, all candidates in this list
+        -- have the same length anyway, so we can just compare the
+        -- lengths
+        candComprGain (_, c) = c
+        -- `sameGain' are all candidates with the same gain as the
+        -- first element of `rest'.  We can't keep the first element
+        -- because it overlaps with `x' and as such after `x` is
+        -- replaced, its count may drop.  However, all other
+        -- candidates with the same gain that do not overlap can
+        -- already be used.
+        sameGain = case rest of
+                     [] -> []
+                     (y:ys) -> let gain = candComprGain y
+                               in foldr (keepOthersWithSameGain gain)
+                                        []
+                                        $ filter (not . (overlapsDigram `on` fst $ x)) ys
+        keepOthersWithSameGain g z zs =
+          if candComprGain z >= g
+          then z:zs
+          -- input list is sorted -> no need to look further once the gain decreases
+          else []
+  
 getNextCandidates :: [Candidate] -> [Candidate]
 getNextCandidates [] = []
 getNextCandidates (x:xs) = x:(getNextCandidates $ safeToKeep ++ sameGain)

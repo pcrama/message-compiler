@@ -7,6 +7,7 @@ module Digram (
 , initDigram
 , shiftDigram
 , stringBoundary
+, overlapsDigram
 )
 
 where
@@ -91,3 +92,12 @@ foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
 foldEnumArray fun base arr =
     foldl' combine base (range $ bounds arr)
   where combine xs idx = fun (idx, (arr ! idx)) xs
+
+overlapsDigram :: Digram -> Digram -> Bool
+overlapsDigram (Digram d) (Digram e) = (d `shift` (-8)) == (e .&. 0xff)
+                                    || (d .&. 0xff) == (e `shift` (-8))
+                                    -- In the context where this
+                                    -- function is used, this last
+                                    -- test actually always returns
+                                    -- False:
+                                    || d == e

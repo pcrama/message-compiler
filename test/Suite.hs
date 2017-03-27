@@ -28,6 +28,8 @@ main = defaultMainWithOpts
        , testProperty "prop.compressDecompressId" propCompressDecompressId
        , testProperty "prop.compressionSavesSpaceOrId" propCompressSavesSpaceOrId
        , testProperty "prop.allCompressionsUsed" propAllCompressionsUsed
+       , testProperty "prop.overlapEquivalence" propOverlapEquivalence
+       , testProperty "prop.getNextCandidateEquivalence" propGetNextCandidateEquivalence
        ] mempty
 
 assertRightTrue :: Show a => Either a Bool -> Assertion
@@ -63,3 +65,9 @@ propCompressSavesSpaceOrId = property $ Properties.propertyCompressionSavesSpace
 
 propAllCompressionsUsed :: Property
 propAllCompressionsUsed = property $ Properties.propertyAllCompressionsUsed
+
+propOverlapEquivalence :: Property
+propOverlapEquivalence = property $ Properties.propertyOverlapEquivalence
+
+propGetNextCandidateEquivalence :: Property
+propGetNextCandidateEquivalence = property $ Properties.propertyGetNextCandidatesEquivalence

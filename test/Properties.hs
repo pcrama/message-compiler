@@ -2,6 +2,8 @@ module Properties (
     propertyCompressionIsReversible
   , propertyCompressionSavesSpaceOrId
   , propertyAllCompressionsUsed
+  , propertyGetNextCandidatesEquivalence
+  , propertyOverlapEquivalence
 )
 
 where
@@ -11,8 +13,12 @@ import Test.QuickCheck
 import qualified Data.Bits
 import Data.Char (chr, ord)
 import qualified Data.ByteString as B
+import Data.List (nub, sort)
 
+import CandidateSelection (Candidate(..), overlaps, getNextCandidates, getNextDigrams)
+import Digram (Digram, unDigram, overlapsDigram, initDigram, shiftDigram)
 import TopFunctions
+import Utils (Count, minCountLen2, on)
 
 newtype InputString = IS { unIS :: String } deriving (Show, Eq)
 
@@ -59,3 +65,42 @@ propertyAllCompressionsUsed = maybe False allUsed . compressText . unIS
         inCompressedOrSubstrings compressed cpAssoc (cp, _) =
           B.elem cp compressed || (any (B.elem cp . snd)
                                      $ filter ((/= cp) . fst) cpAssoc)
+
+-- Wrap Digram to avoid `orphaned instance' warning:
+newtype ArbDigram = ArbDigram Digram deriving (Show, Eq)
+
+instance Arbitrary ArbDigram where
+  arbitrary = do
+                a <- arbitrary
+                b <- arbitrary
+                return $ ArbDigram $ shiftDigram a $ shiftDigram b initDigram
+
+-- There are two implementations for the `overlaps' predicate: a
+-- generic one working on any candidate and a specialised one, only
+-- working on a pair of Digrams.  Check that both implementations are
+-- equivalent.
+propertyOverlapEquivalence :: ArbDigram -> ArbDigram -> Bool
+propertyOverlapEquivalence (ArbDigram x) (ArbDigram y) =
+       overlapsDigram x y
+    == (overlaps `on` (flip Candidate 1 . unDigram)) x y
+
+newtype CandList = CandList [(ArbDigram, Count)] deriving (Show, Eq)
+
+instance Arbitrary CandList where
+  -- Produce a valid list of Digram candidates (i.e. where they appear
+  -- often enough) by forcing each Digram to be unique and all counts
+  -- to be at least minCountLen2 and sorting from most occuring to
+  -- least occuring.
+  arbitrary = do
+      digrams <- fmap nub $ arbitrary
+      counts <- arbitrary
+      return . CandList $ zip digrams
+                            $ reverse . sort $ map ((+minCountLen2) . abs) counts
+
+propertyGetNextCandidatesEquivalence :: CandList -> Bool
+propertyGetNextCandidatesEquivalence (CandList xs) =
+       (getNextCandidates $ map arbToCand xs)
+    == (map digramToCand $ getNextDigrams $ map toDigram xs)
+  where arbToCand (ArbDigram d, c) = Candidate (unDigram d) c
+        digramToCand (d, c) = Candidate (unDigram d) c
+        toDigram (ArbDigram d, c) = (d, c)
