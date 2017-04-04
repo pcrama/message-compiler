@@ -1,47 +1,35 @@
 module EnnGram (
   CombineState2(..)
-, EnnGram
 , EnnGramMap
-, FullEnnGram(..)
+, EnnGram(..)
 , ennGramMap
 , makeEnnGramList -- internal, exported for testing only
-, ennLength
-, ennOffs
-, ennString
 , mkEnnGram
 , showEnnGramMap
 ) where
 
 import qualified Data.ByteString as B
 import Data.List (sortBy)
-import Data.Word (Word32)
 import Data.Array ((!))
-import Data.Bits ((.&.), shift)
 import Data.Map (Map, fromListWithKey, toList)
 import Data.Char (chr)
 
 import Utils
 import InputText
-import Reader
 import Digram
 
-newtype EnnGram = EnnGram Word32
-
--- Not ShortByteString: all FullEnnGram share the same input string (the
+-- Not ShortByteString: all EnnGram share the same input string (the
 -- complete input text)
-newtype FullEnnGram = FullEnnGram { fullEnnGramToString :: B.ByteString }
+newtype EnnGram = EnnGram { fullEnnGramToString :: B.ByteString }
 
---fullEnnGramToString (FullEnnGram ng it) =
---    runReader (ennString ng) it
-
-instance Show FullEnnGram where
+instance Show EnnGram where
   show = map (chr . fromIntegral) . B.unpack . fullEnnGramToString
 
-instance Eq FullEnnGram where
+instance Eq EnnGram where
   f == g = (compare f g) == EQ
 
-instance Ord FullEnnGram where
-  compare (FullEnnGram s) (FullEnnGram t)
+instance Ord EnnGram where
+  compare (EnnGram s) (EnnGram t)
     -- This isn't lexicographically ordering (we compare on length first) but
     -- any stable/strict ordering will do for Map insertion and looking at the
     -- length first is a bit cheaper (mainly because there is less allocation)
@@ -68,8 +56,8 @@ instance Ord FullEnnGram where
 -- FLODR1: COST CENTRE        MODULE             %time %alloc
 -- FLODR1: compare            EnnGram             51.0   53.8
 -- FLODR1: ennGramMap         EnnGram             25.9   21.9
--- FLODR1:  instance Ord FullEnnGram where
--- FLODR1:    compare (FullEnnGram s e) (FullEnnGram t f)
+-- FLODR1:  instance Ord EnnGram where
+-- FLODR1:    compare (EnnGram s e) (EnnGram t f)
 -- FLODR1:      | sLen > tLen = GT
 -- FLODR1:      | sLen < tLen = LT
 -- FLODR1:      | sLen == tLen =
@@ -91,8 +79,8 @@ instance Ord FullEnnGram where
 -- FOLDL': ennGramMap         EnnGram              9.3    4.1
 -- FOLDL': makeCandidates     CandidateSelection   2.4    2.3
 -- FOLDL': enqueueNewEnnGrams EnnGram              1.2    0.6
--- FOLDL':  instance Ord FullEnnGram where
--- FOLDL':    compare (FullEnnGram s e) (FullEnnGram t f)
+-- FOLDL':  instance Ord EnnGram where
+-- FOLDL':    compare (EnnGram s e) (EnnGram t f)
 -- FOLDL':      | sLen > tLen = GT
 -- FOLDL':      | sLen < tLen = LT
 -- FOLDL':      | sLen == tLen = foldl' cpComp EQ $ take (fromIntegral sLen) $ zip [(ennOffs s)..] [(ennOffs t)..]
@@ -112,8 +100,8 @@ instance Ord FullEnnGram where
 -- RECURS: ennGramMap         EnnGram             32.5   47.4
 -- RECURS: compare            EnnGram             27.4    0.0
 -- RECURS: makeCandidates     CandidateSelection  11.4   25.8
--- RECURS:  instance Ord FullEnnGram where
--- RECURS:    compare (FullEnnGram s e) (FullEnnGram t f)
+-- RECURS:  instance Ord EnnGram where
+-- RECURS:    compare (EnnGram s e) (EnnGram t f)
 -- RECURS:      | sLen > tLen = GT
 -- RECURS:      | sLen < tLen = LT
 -- RECURS:      | sLen == tLen = go 0 (ennOffs s) (ennOffs t)
@@ -134,8 +122,8 @@ instance Ord FullEnnGram where
 -- FOLDR2: compare            EnnGram             28.1    0.0
 -- FOLDR2: makeCandidates     CandidateSelection  14.4   25.8
 -- FOLDR2: enqueueNewEnnGrams EnnGram              4.9    7.4
--- FOLDR2:  instance Ord FullEnnGram where
--- FOLDR2:    compare (FullEnnGram s e) (FullEnnGram t f)
+-- FOLDR2:  instance Ord EnnGram where
+-- FOLDR2:    compare (EnnGram s e) (EnnGram t f)
 -- FOLDR2:      | sLen > tLen = GT
 -- FOLDR2:      | sLen < tLen = LT
 -- FOLDR2:      | sLen == tLen = foldr cpComp EQ [0..fromIntegral sLen - 1]
@@ -151,34 +139,13 @@ instance Ord FullEnnGram where
 -- FOLDR2:                     EQ -> res
 -- FOLDR2:                     otherwise -> comp
 
-instance Show EnnGram where
-  show x = "EG " ++ (show $ ennOffs x) ++ ":" ++ (show $ ennLength x)
-
---mkEnnGram :: (Integral len, Bits len) => Offset -> len -> Maybe EnnGram
-mkEnnGram :: Offset -> Length -> Maybe EnnGram
-mkEnnGram offs len =
-  if (offs < maxOffs) && (len > 2) && (len < maxLen)
-  then Just . EnnGram $ (fromIntegral offs `shift` lenWidth)
-                        + fromIntegral len
+mkEnnGram :: InputText -> Offset -> Length -> Maybe EnnGram
+mkEnnGram it offs len =
+  if (len > 2)
+  then Just . EnnGram $ B.take len $ B.drop offs it
   else Nothing
-  where maxOffs = 1 `shift` 20
-        maxLen = 1 `shift` lenWidth
-        lenWidth = 12 -- bits
 
-ennString :: EnnGram -> Reader InputText B.ByteString
-ennString x = do
-  txt <- ask
-  let len = fromIntegral $ ennLength x
-  let offs = fromIntegral $ ennOffs x
-  return . B.pack $ foldr (\idx t -> (txt `B.index` idx):t) [] [offs..(offs + len - 1)]
-
-ennOffs :: EnnGram -> Offset
-ennOffs (EnnGram x) = fromIntegral $ x `shift` (0 - 12)
-
-ennLength :: EnnGram -> Length
-ennLength (EnnGram x) = fromIntegral $ x .&. 0xfff
-
-type EnnGramMap = Map FullEnnGram CombineState2
+type EnnGramMap = Map EnnGram CombineState2
 
 showEnnGramMap :: EnnGramMap -> [String]
 showEnnGramMap = map showKeyVal
@@ -188,19 +155,16 @@ showEnnGramMap = map showKeyVal
                . toList
   where showKeyVal (f, CS2 (_, count)) = show (f, count)
         compareGain x y = (compare `on` compressionGain') y x
-        compressionGain' (FullEnnGram ng, CS2 (_, count)) =
+        compressionGain' (EnnGram ng, CS2 (_, count)) =
           compressionGain (B.length ng) count
-        compresses (FullEnnGram ng, CS2 (_, count)) =
+        compresses (EnnGram ng, CS2 (_, count)) =
           (B.length ng == 3) && (count > 2)
           || (B.length ng > 3) && (count > 1)
 
 ennGramMap :: InputText -> (EnnGramMap, DigramTable)
 ennGramMap txt = (mp, dt)
   where dt = digramTable txt
-        mapfun :: InputText -> (EnnGram, CombineState2) -> (FullEnnGram, CombineState2)
-        mapfun it (ng, cs2) = (FullEnnGram . B.take (ennLength ng) . B.drop (ennOffs ng) $ it, cs2)
         mp = fromListWithKey combine2
-           $ map (mapfun txt)
            $ makeEnnGramList txt dt
 
 -- Make a list of EnnGram that could possibly appear
@@ -217,7 +181,7 @@ ennGramMap txt = (mp, dt)
 makeEnnGramList :: InputText -> DigramTable
                 -> [(EnnGram, CombineState2)]
 makeEnnGramList txt dt = el
-  where (_, _, el) = foldEnumByteString (combine1 dt)
+  where (_, _, el) = foldEnumByteString (combine1 txt dt)
                                         (0::Offset, initDigram, [])
                                         txt
 
@@ -268,13 +232,13 @@ type CombineState1 = (Offset, Digram, [(EnnGram, CombineState2)])
 --                prOffs /   \ offs
 --     Needs enqueuing 56789, 6789 and 789 (assumes that 89
 --     occurs at least twice.
-combine1 :: DigramTable -> (Offset, Codepoint) -> CombineState1 ->
+combine1 :: InputText -> DigramTable -> (Offset, Codepoint) -> CombineState1 ->
             CombineState1
-combine1 digTab (offs, cp) (prOffs, prDigram, prTail)
+combine1 it digTab (offs, cp) (prOffs, prDigram, prTail)
     | (((offs - prOffs) == 1 && (maxOccur > 1))
        || (offs == prOffs)) =
        warmup prOffs newDigram prTail
-    | (maxOccur > 1) = enqueueNewEnnGrams maxOccur prOffs newDigram offs prTail
+    | (maxOccur > 1) = enqueueNewEnnGrams it maxOccur prOffs newDigram offs prTail
     | otherwise = stopAndRestart
   where newDigram = shiftDigram cp prDigram
         maxOccur = digTab ! newDigram 
@@ -286,13 +250,13 @@ combine1 digTab (offs, cp) (prOffs, prDigram, prTail)
                    CombineState1
         restart o d t = (o, shiftDigram d initDigram, t)
 
-enqueueNewEnnGrams :: Int -> Offset -> Digram -> Offset -> [(EnnGram, CombineState2)] ->
+enqueueNewEnnGrams :: InputText -> Int -> Offset -> Digram -> Offset -> [(EnnGram, CombineState2)] ->
                       CombineState1
-enqueueNewEnnGrams maxOccur prOffs d offs t = (prOffs, d, newTail)
+enqueueNewEnnGrams it maxOccur prOffs d offs t = (prOffs, d, newTail)
   where newTail = foldr fun t ennGramLengths
         ennGramLengths = filter (\len -> compressionGain len maxOccur > 0)
                          $ take (offs - prOffs - 1) [(3::Length)..]
-        fun len base = let Just ng = mkEnnGram (offs - len + 1) len in
+        fun len base = let Just ng = mkEnnGram it (offs - len + 1) len in
           (ng, CS2 (offs + 1, 1)):base
 
 -- CombineState2 contains the offset where a new substring
@@ -320,9 +284,9 @@ newtype CombineState2 = CS2 (Offset, Count)
 -- substring for both values obviously but its offset
 -- in the input text corresponds to the new value.
 -- combine2 :: {Key} -> {New Value} -> {Old Value} -> {Combined Value}
-combine2 :: FullEnnGram -> CombineState2 -> CombineState2
+combine2 :: EnnGram -> CombineState2 -> CombineState2
          -> CombineState2
-combine2 (FullEnnGram ng)
+combine2 (EnnGram ng)
          (CS2 (prev_o, _prev_c))
          next@(CS2 (next_o, next_c)) =
   if prev_o <= (next_o - (fromIntegral $ B.length ng))

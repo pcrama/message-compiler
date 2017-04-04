@@ -23,9 +23,9 @@ oneTestMakeEnnGramList :: [String] -> [(Offset, Length)]
 oneTestMakeEnnGramList sl expected =
     if length sorted == length expected
     && (and $ zipWith (==)
-                      (map (toTuple . fst) sorted)
-                      $ map toTuple . sortBy ennGramCompare
-                        $ makeExpectedEnnGramList expected)
+                      (map fst sorted)
+                      $ sortBy ennGramCompare
+                             $ makeExpectedEnnGramList it expected)
     then Right True
     else Left (sl, sorted)
   where Just it = toCodepoints (traceShow sl)
@@ -33,17 +33,14 @@ oneTestMakeEnnGramList sl expected =
         eglist = makeEnnGramList it dt
         sorted = sortBy ennGramCs2compare eglist
         ennGramCs2compare = ennGramCompare `on` fst
-        ennGramCompare ng1 ng2
-          | ennOffs ng1 == ennOffs ng2 = (compare `on` ennLength) ng1 ng2
-          | otherwise = (compare `on` ennOffs) ng1 ng2
-        toTuple ng = (ennOffs ng, ennLength ng)
+        ennGramCompare ng1 ng2 = compare ng1 ng2
 
 -- I don't have traverse in Hugs :-(, otherwise, I'd
 -- write maybe [] id . traverse . map mkEnnGram
-makeExpectedEnnGramList :: [(Offset, Length)] -> [EnnGram]
-makeExpectedEnnGramList =
+makeExpectedEnnGramList :: InputText -> [(Offset, Length)] -> [EnnGram]
+makeExpectedEnnGramList it =
   foldr (\(offs, len) acc ->
-             maybe [] (:acc) $ mkEnnGram (offs :: Offset) len)
+             maybe [] (:acc) $ mkEnnGram it (offs :: Offset) len)
         []
 
 testMakeEnnGramList :: Either ([String], [(EnnGram, CombineState2)]) Bool
@@ -108,7 +105,7 @@ testMakeEnnGramList =
 
 oneTestMakeEnnGramMap :: [String] -> [(Offset,Length,Int)]
                       -> Either ([String]
-                                , M.Map FullEnnGram CombineState2)
+                                , M.Map EnnGram CombineState2)
                                 Bool
 oneTestMakeEnnGramMap sl xp
   | (length xp == M.size mp)
@@ -121,11 +118,10 @@ oneTestMakeEnnGramMap sl xp
             case M.lookup key mp of
               Just (CS2 (_, c)) -> c == count
               Nothing -> False
-          where key = FullEnnGram . B.take (ennLength ng) . B.drop (ennOffs ng) $ it
-                Just ng = mkEnnGram offs len
+          where Just key = mkEnnGram it offs len
 
 testMakeEnnGramMap :: Either ([String]
-                              , M.Map FullEnnGram CombineState2)
+                              , M.Map EnnGram CombineState2)
                              Bool
 testMakeEnnGramMap =
      oneTestMakeEnnGramMap [] []

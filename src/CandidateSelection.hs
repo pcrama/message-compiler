@@ -65,8 +65,8 @@ makeCandidates maxN mp dt = mergeBy (flip compare) ennGrams diGrams
         ennGrams = sortBy (flip compare)
                  $ map fullEGToCand
                  $ getEnnGrams worstDigramGain mp
-        fullEGToCand :: (FullEnnGram, CombineState2) -> Candidate
-        fullEGToCand (FullEnnGram eg, CS2 (_, count)) = Candidate eg count
+        fullEGToCand :: (EnnGram, CombineState2) -> Candidate
+        fullEGToCand (EnnGram eg, CS2 (_, count)) = Candidate eg count
 
 -- Identical to getNextCandidates but specialised for Digrams only.
 getNextDigrams :: [(Digram, Count)] -> [(Digram, Count)]
@@ -152,10 +152,10 @@ overlaps (Candidate chosen _) (Candidate other _) =
                              else (chosen, other)
      in shorter `B.isInfixOf` longer
 
-getEnnGrams :: Int -> EnnGramMap -> [(FullEnnGram, CombineState2)]
+getEnnGrams :: Int -> EnnGramMap -> [(EnnGram, CombineState2)]
 getEnnGrams lowest = filter ((> lowest) . compressionGain')
                    . toList
-  where compressionGain' (FullEnnGram ng, CS2 (_, count)) =
+  where compressionGain' (EnnGram ng, CS2 (_, count)) =
           compressionGain (B.length ng) count
 
 mergeBy :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
