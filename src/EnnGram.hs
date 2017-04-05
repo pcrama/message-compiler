@@ -145,6 +145,9 @@ mkEnnGram it offs len =
   then Just . EnnGram $ B.take len $ B.drop offs it
   else Nothing
 
+unsafeMkEnnGram :: InputText -> Offset -> Length -> EnnGram
+unsafeMkEnnGram it offs len = EnnGram $ B.take len $ B.drop offs it
+
 type EnnGramMap = Map EnnGram CombineState2
 
 showEnnGramMap :: EnnGramMap -> [String]
@@ -256,8 +259,11 @@ enqueueNewEnnGrams it maxOccur prOffs d offs t = (prOffs, d, newTail)
   where newTail = foldr fun t ennGramLengths
         ennGramLengths = filter (\len -> compressionGain len maxOccur > 0)
                          $ take (offs - prOffs - 1) [(3::Length)..]
-        fun len base = let Just ng = mkEnnGram it (offs - len + 1) len in
-          (ng, CS2 (offs + 1, 1)):base
+        -- by construction (see the 3::Length starting index in ennGramLengths)
+        -- the length is always > 2, so we may call the unsafe version, and
+        -- produce less garbage.
+        fun len base =
+            (unsafeMkEnnGram it (offs - len + 1) len, CS2 (offs + 1, 1)):base
 
 -- CombineState2 contains the offset where a new substring
 -- with the same content can be counted (index of first
