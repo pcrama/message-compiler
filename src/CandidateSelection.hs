@@ -6,7 +6,6 @@ import Data.Ord (comparing)
 import Data.List (sortBy
                 , break)
 import Data.Map (toList)
-import Data.Array.IArray (assocs)
 import qualified Data.ByteString as B
 
 import Utils
@@ -45,8 +44,16 @@ makeCandidates maxN mp dt = mergeBy (flip compare) ennGrams diGrams
                 $ take maxN
                 $ getNextDigrams
                 $ sortBy (flip $ comparing digramCount)
-                $ filter ((>= minCountLen2) . digramCount)
-                $ assocs dt
+                -- get Digram assoc list that results in compession gain > 0
+                $ keepCompressing dt
+        -- manually fuse `assocs dt' with `filter ...': saves some memory and
+        -- wasn't done automatically.
+        keepCompressing :: DigramTable -> [(Digram, Count)]
+        keepCompressing = foldEnumDigrams (\z@(_, count) tl ->
+                                             if count >= minCountLen2
+                                             then z:tl
+                                             else tl)
+                                          []
         digramCount (_, count) = count
         digramToCand (di, count) =
             Candidate (unDigram di) count

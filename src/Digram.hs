@@ -8,6 +8,7 @@ module Digram (
 , shiftDigram
 , stringBoundary
 , overlapsDigram
+, foldEnumDigrams
 )
 
 where

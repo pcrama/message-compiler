@@ -254,5 +254,11 @@ testMakeThenGetCandidates =
                          && not (spec2 `elem` alphabet)
                          && spec1 /= spec2))
              $ oneTestMakeThenGetCandidates t3
-                                            $ ("!!", n + m):[(intToString x, n)
-                                                             | x <- [0..maxCompressions - 2]]
+                                            $ ("!!", n + m)
+                                            -- since all candidates below have
+                                            -- the same compressionGain, their
+                                            -- order shouldn't matter, but my
+                                            -- comparison of expected and
+                                            -- observed values is dumb
+                                             :reverse [(intToString x, n)
+                                                       | x <- [4..maxCompressions + 2]]
