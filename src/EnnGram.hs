@@ -10,7 +10,7 @@ module EnnGram (
 
 import qualified Data.ByteString as B
 import Data.List (sortBy)
-import Data.Array ((!))
+import Data.Array.IArray ((!))
 import Data.Map (Map, fromListWithKey, toList)
 import Data.Char (chr)
 

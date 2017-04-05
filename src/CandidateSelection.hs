@@ -6,7 +6,7 @@ import Data.Ord (comparing)
 import Data.List (sortBy
                 , break)
 import Data.Map (toList)
-import Data.Array (assocs)
+import Data.Array.IArray (assocs)
 import qualified Data.ByteString as B
 
 import Utils

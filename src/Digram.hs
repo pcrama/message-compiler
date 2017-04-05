@@ -12,7 +12,8 @@ module Digram (
 
 where
 
-import Data.Array ((!), Array, accumArray, bounds)
+import Data.Array (Array)
+import Data.Array.IArray((!), accumArray, bounds)
 import Data.Bits ((.&.), (.|.), shift)
 import Data.List (foldl')
 import Data.Ix (Ix, range)
@@ -33,11 +34,11 @@ initDigram = Digram 0
 
 summarizeDigramTable :: DigramTable -> [(B.ByteString, Count)]
 summarizeDigramTable =
-  foldEnumArray (\(di,count) t ->
-                   if count > 0
-                   then (unDigram di, count):t
-                   else t)
-                []
+  foldEnumDigrams (\(di,count) t ->
+                       if count > 0
+                       then (unDigram di, count):t
+                       else t)
+                  []
 
 instance Show Digram where
   show x = "Digram " ++ (map (chr .fromIntegral) . B.unpack $ unDigram x)
@@ -88,8 +89,12 @@ digramTable txt =
         nonEmptyToList :: (a, b, [b]) -> [b]
         nonEmptyToList (_, hd, tl) = hd:tl
 
-foldEnumArray :: Ix a => ((a, b) -> c -> c) -> c -> Array a b -> c
-foldEnumArray fun base arr =
+-- This used to be a generic foldEnumArray, but this got me into
+-- trouble needing FlexibleInstances while evaluating Unboxed arrays
+-- and since a specialised version was fine, I specialized on
+-- DigramTable
+foldEnumDigrams :: ((Digram, Count) -> c -> c) -> c -> DigramTable -> c
+foldEnumDigrams fun base arr =
     foldl' combine base (range $ bounds arr)
   where combine xs idx = fun (idx, (arr ! idx)) xs
 

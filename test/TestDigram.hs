@@ -4,7 +4,7 @@ module TestDigram (
 , oneTest
 ) where
 
-import Data.Array
+import Data.Array.IArray
 import Data.Traversable (traverse)
 import qualified Data.ByteString as B
 
