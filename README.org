@@ -60,6 +60,52 @@ To run it, you need to uncomment the =main= function at the bottom of
 - Try to reduce unnecessary work by using a table of two-letter
   frequencies as upper bound of how often a substring containing these
   can occur.
+
+** How it works
+*** Validating input
+The input (a list of =String=) is [[file+emacs:src/InputText.hs::toCodepoints%20=][transformed]] into one big
+=ByteString= by pasting them together, separated by a [[file+emacs:src/Utils.hs::stringSeparationCP%20=%200][=NUL= byte]].
+Each character of the input is verified to be inside a restricted
+range to avoid a clash with the separator character or the characters
+used to replace substrings.
+
+*** Substring counts
+The substring count must avoid to count overlapping substrings as two
+occurences since replacing one of the substrings will prevent to
+replace the other (examples: =aaaa= contains the substring =aa= only
+twice, not three times or =ababa= contains =aba= only once).
+
+*** Digram table
+First a table of $256 \cdot 256 = 65536$ entries is built to count the
+occurences of each digram (2 letter grouping).  This phase is also
+used to make sure that no substrings straddling (e.g. the last
+character of a string and the first character of the next) strings are
+included as candidate for completion by the next step.  For this, any
+digram containing the separator has its count forced to 0.
+
+*** EnnGram map
+Any substring of 3 letters or more is called an EnnGram.  A map is
+built where each EnnGram is a key and the value is the count of
+occurences. Starting from a character, EnnGrams are collected using
+the successive encountered Digrams as upper bounds of how many times a
+given EnnGram might appear in the text.  As soon as the upper bound
+drops to 1 or below, the process stops, then restarts from that place.
+
+*** Candidates
+The Digrams and their counts and the EnnGrams and their counts are
+merged into a list of Candidates (a product type of a substring and
+its occurence count), sorted by their expected gain when replaced by a
+single byte.
+
+*** Greedy algorithm
+Next, as many Candidates as possible are popped off the list, making
+sure that each new Candidate popped off doesn't overlap with those
+already used (as this overlap could invalidate the count and hence the
+expected compression gain).
+
+Then all selected Candidates are replaced and the counting process
+restarts.
+
 * Space or Time Complexity
 
 This section is to keep notes about the expected orders of magnitude
